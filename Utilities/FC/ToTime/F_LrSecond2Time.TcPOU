@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_LrSecond2Time" Id="{163fab69-9968-486a-b1cd-5f54df0942a0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_LrSecond2Time : Time
+VAR_INPUT
+	lrSecond	: LREAL;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_LrSecond2Time := lreal_to_time(lrSecond*1000);]]></ST>
+    </Implementation>
+    <LineIds Name="F_LrSecond2Time">
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

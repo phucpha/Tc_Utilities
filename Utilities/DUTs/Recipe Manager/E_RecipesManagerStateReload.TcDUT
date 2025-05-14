@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RecipesManagerStateReload" Id="{a0ef46b5-29ee-40a8-9949-023d46cd7f85}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_RecipesManagerStateReload :
+(
+	RECIPE_MANAGER_RELOAD_OPERATION 			:= 0,
+	RECIPE_MANAGER_RELOAD_GET_RECIPES_COUNT 	:= 10,
+	RECIPE_MANAGER_RELOAD_GET_RECIPES_NAMES 	:= 20,
+	RECIPE_MANAGER_RELOAD_GET_VARIABLE_NAMES	:= 30,
+	RECIPE_MANAGER_RELOAD_GET_VARIABLE_VALUES	:= 40,
+	RECIPE_MANAGER_RELOAD_DONE					:= 50
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

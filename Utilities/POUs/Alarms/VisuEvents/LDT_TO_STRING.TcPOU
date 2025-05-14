@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="LDT_TO_STRING" Id="{7cac4314-166c-4fbd-b81f-6ed1690347a4}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION LDT_TO_STRING : STRING(24)
+VAR_INPUT
+	uliTime	:	ULINT; 	//Time [ms]
+END_VAR
+VAR
+	dtTime			:	DATE_AND_TIME;
+	uliMillisecond	:	ULINT;
+	sTime			:	STRING(24);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF uliTime = 0 THEN
+	LDT_TO_STRING := '-';
+	RETURN;
+END_IF
+dtTime := ULINT_TO_DT(uliTime/1000);
+uliMillisecond := uliTime - DT_TO_ULINT(dtTime);
+sTime := DT_TO_STRING(dtTime);
+sTime := DELETE(sTime,3,1);
+sTime := CONCAT(sTime,'.');
+if uliMillisecond = 0 then
+	sTime := CONCAT(sTime,'000');
+ELSIF uliMillisecond < 100 THEN
+	sTime := CONCAT(sTime,'0');
+	sTime := CONCAT(sTime,ULINT_TO_STRING(uliMillisecond));
+ELSE
+	sTime := CONCAT(sTime,ULINT_TO_STRING(uliMillisecond));	
+END_IF
+LDT_TO_STRING := sTime;]]></ST>
+    </Implementation>
+    <LineIds Name="LDT_TO_STRING">
+      <LineId Id="43" Count="1" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="22" Count="1" />
+      <LineId Id="25" Count="1" />
+      <LineId Id="29" Count="4" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

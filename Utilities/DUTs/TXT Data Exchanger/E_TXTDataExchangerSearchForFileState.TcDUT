@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_TXTDataExchangerSearchForFileState" Id="{960096b3-e0da-49dc-8e13-5af3b0f868a3}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_TXTDataExchangerSearchForFileState :
+(
+	TXT_DATA_EXCHANGER_SEARCH_FOR_FILE_ENUM_FIRST_ENTRY			:= 0,
+	TXT_DATA_EXCHANGER_SEARCH_FOR_FILE_ENUM_NEXT_ENTRY			:= 10,
+	TXT_DATA_EXCHANGER_SEARCH_FOR_FILE_WAIT_FOR_READING			:= 20,
+	TXT_DATA_EXCHANGER_SEARCH_FOR_FILE_DONE						:= 30
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

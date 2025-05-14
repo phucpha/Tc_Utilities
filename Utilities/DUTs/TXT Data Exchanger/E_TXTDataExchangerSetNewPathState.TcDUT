@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_TXTDataExchangerSetNewPathState" Id="{5a05d7d4-486a-4fae-a41a-2a66f38ffaef}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_TXTDataExchangerSetNewPathState :
+(
+	TXT_DATA_EXCHANGER_SET_NEW_PATH_CHANGE_PATH			:= 0,
+	TXT_DATA_EXCHANGER_SET_NEW_PATH_DONE				:= 10
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

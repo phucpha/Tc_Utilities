@@ -1,0 +1,2190 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RecipesControler" Id="{bce2a724-ed3e-46cb-85a8-d5a4d0c4fb23}" SpecialFunc="None">
+    <Declaration><![CDATA[(* 
+:Description: This function block is used to control the recipe manager feature
+*) 
+FUNCTION_BLOCK FB_RecipesControler IMPLEMENTS I_RecipesManager
+VAR	
+	bFirstCycle: BOOL := TRUE;
+	iLoop : INT;
+	
+	(* Internal commands *)
+	bInit						: BOOL;									(*  *)
+	bAbort						: BOOL;									(*  *)
+	bCreate						: BOOL;									(*  *)
+	bLoad						: BOOL;									(*  *)
+	bLoadAndWrite				: BOOL;									(*  *)
+	bRead						: BOOL;									(*  *)
+	bReadAndSave				: BOOL;									(*  *)
+	bRemove						: BOOL;									(*  *)
+	bSave						: BOOL;									(*  *)
+	bWrite						: BOOL;									(*  *)
+	bGetRecipeCount				: BOOL;									(*  *)
+	bGetNameArray				: BOOL;									(*  *)
+	bGetVariableNames			: BOOL;									(*  *)
+	bGetRecipeNames				: BOOL;									(*  *)
+	bGetVariableValues			: BOOL;									(*  *)
+	bReload						: BOOL;									(*  *)
+	bRestore					: BOOL;									(*  *)
+	bBackup						: BOOL;									(*  *)
+	
+	(* Internal parameters *)
+	sStoragePath				: STRING;
+	sLocalStoragePath			: STRING;								(*  *)
+	sBackupStoragePath			: STRING;
+	sRecipesDefinition			: STRING;								(*  *)
+	sRecipeName					: STRING;								(*  *)
+	
+	(* Internal status *)
+	bActive						: BOOL;									(*  *)
+	bBusy						: BOOL;									(*  *)
+	bError						: BOOL;									(*  *)
+	iErrorId 					: DWORD;								(*  *)
+	
+	eStateMachine				: E_RecipesManagerState;				(*  *)
+	eStateMachineInit			: E_RecipesmanagerStateInit;			(*  *)
+	eStateMachineReload			: E_RecipesManagerStateReload;
+	eStateMachineCreateRemove	: E_RecipesManagerStateCreateRemove;	(*  *)
+	eStateMachineBackup			: E_RecipesManagerStateBackup;	(*  *)
+	
+	bLastSetStoragePathResult	: BOOL;									(*  *)
+	iLastResult					: DWORD;								(*  *)
+	eLastResult					: E_RecipesManagerReturns;				(*  *)
+	
+	iRecipesCount				: USINT;
+	arrVariableNames			: ARRAY [0..iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1] OF STRING;
+	arrRecipesNames				: ARRAY	[0..iMAX_NUMBER_OF_RECIPES-1] OF STRING;
+	arrRecipeValues				: ARRAY [0..iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1] OF STRING;
+	
+	//iArrRecipeValuesAdr			: PVOID := ADR(arrRecipeValues);
+	arrRecipeValuesAdr			: ARRAY [0..iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1] OF PVOID;
+	bRecipeFileValuesAdrAvailable	: BOOL := FALSE;
+	
+	(* Function blocks *)
+	fbRecipeManager 			: RecipeManCommands; (* Recipes manager clontroling FB *)
+	
+	(* Tc3 EventLogger - messages *)
+	bAlarmFailed			: FB_TcAlarm;				(*  *)	
+	fbAlarmParameter		: FB_TcAlarm;				(*  *)
+	fbAlarmNotInitialized	: FB_TcAlarm;				(*  *)
+	fbAlarmNotImplemented	: FB_TcAlarm;				(*  *)
+	fbAlarmNoObject			: FB_TcAlarm;				(*  *)
+	fbAlarmFileNoMemory		: FB_TcAlarm;				(*  *)
+	fbAlarmFileNotFound		: FB_TcAlarm;				(*  *)
+	fbAlarmRecipeMismatch	: FB_TcAlarm;				(*  *)
+	fbAlarmRecipeSave		: FB_TcAlarm;				(*  *)
+	fbAlarmRecipeNotFound	: FB_TcAlarm;				(*  *)
+	fbAlarmDefNotFound		: FB_TcAlarm;				(*  *)
+	fbAlarmAlreadyExist		: FB_TcAlarm;				(*  *)
+	fbAlarmNoManagerSet		: FB_TcAlarm;				(*  *)
+	fbAlarmNotAllVariable	: FB_TcAlarm;				(*  *)
+	fbAlarmRecipeNoMemory	: FB_TcAlarm;				(*  *)
+	fbAlarmManagerLocked	: FB_TcAlarm;				(*  *)
+	fbAlarmSourceExhausted	: FB_TcAlarm;				(*  *)
+	fbAlarmTargetExhausted	: FB_TcAlarm;				(*  *)
+	fbAlarmSourceIllegal	: FB_TcAlarm;				(*  *)
+	
+	
+	rtError		: R_TRIG; 					(* Rising edge trigger for function block error *)
+END_VAR
+(*
+Version history:
+
++-------------+------------+----------------+----------+----------------------------------------------------------------+
+|Date         | Version    | created under  | Author   | Remark                                                         |
++=============+============+================+==========+================================================================+
+|2021-11      | 1.0.0.0    | V3.1.4024.22   | ADBO     | Function block created                                         |
++-------------+------------+----------------+----------+----------------------------------------------------------------+
+|2022-06      | 1.0.1.0    | V3.1.4024.22   | ADBO     | Fixes for all detected bugs after tests with Visu controler    |
++-------------+------------+----------------+----------+----------------------------------------------------------------+
+
+*)]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstCycle THEN
+	bFirstCycle := FALSE;
+	
+	FOR iLoop := 0 TO iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1 DO
+		arrRecipeValuesAdr[iLoop] := ADR(arrRecipeValues[iLoop]);
+	END_FOR
+	
+	bRecipeFileValuesAdrAvailable := TRUE;
+	
+	bAlarmFailed.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.Failed, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+		
+	fbAlarmParameter.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.Parameter, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+									
+	fbAlarmNotInitialized.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.NotInitialized, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);		
+									
+	fbAlarmNotImplemented.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.NotImplemented, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+		
+	fbAlarmNoObject.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.NoObject, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+									
+	fbAlarmFileNoMemory.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.FileNoMemory, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);	
+									
+	fbAlarmFileNotFound.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.FileNotFound, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+		
+	fbAlarmRecipeMismatch.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.RecipeMismatch, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+									
+	fbAlarmRecipeSave.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.RecipeSave, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);	
+
+	fbAlarmRecipeNotFound.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.RecipeNotFound, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+		
+	fbAlarmDefNotFound.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.DefNotFound, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+									
+	fbAlarmAlreadyExist.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.AlreadyExist, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);	
+									
+	fbAlarmNoManagerSet.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.NoManagerSet, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+		
+	fbAlarmNotAllVariable.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.NotAllVariable, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+									
+	fbAlarmRecipeNoMemory.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.RecipeNoMemory, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);	
+									
+	fbAlarmManagerLocked.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.ManagerLocked, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+		
+	fbAlarmSourceExhausted.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.SourceExhausted, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+									
+	fbAlarmTargetExhausted.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.TargetExhausted, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);	
+
+	fbAlarmSourceIllegal.CreateEx( stEventEntry := TC_EVENTS.ShellRecipesEventClass.SourceIllegal, 
+									bWithConfirmation := 1,
+									ipSourceInfo := 0);
+							
+END_IF
+
+(* Control active flag *)
+bActive := eStateMachine >= RECIPES_MANAGER_IDLE;
+
+(* Set last result enum*)
+CASE iLastResult OF
+	ERR_OK:
+		eLastResult := RECIPES_MANAGER_ERR_OK;
+		
+	ERR_FAILED:
+		eLastResult := RECIPES_MANAGER_ERR_FAILED;
+		bAlarmFailed.Raise(0);
+		
+	ERR_PARAMETER:
+		eLastResult := RECIPES_MANAGER_ERR_PARAMETER;
+		fbAlarmParameter.Raise(0);
+		
+	ERR_NOTINITIALIZED:
+		eLastResult := RECIPES_MANAGER_ERR_NOTINITALIZED;
+		fbAlarmNotInitialized.Raise(0);
+		
+	ERR_NOTIMPLEMENTED:
+		eLastResult := RECIPES_MANAGER_ERR_NOIMPLEMENTED;
+		fbAlarmNotImplemented.Raise(0);
+		
+	ERR_NO_OBJECT:
+		eLastResult := RECIPES_MANAGER_ERR_NO_OBJECT;
+		fbAlarmNoObject.Raise(0);
+		
+	ERR_NOMEMORY:
+		eLastResult := RECIPES_MANAGER_ERR_NOMEMORY;
+		fbAlarmFileNoMemory.Raise(0);
+		
+	ERR_RECIPE_FILE_NOT_FOUND:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_FILE_NOT_FOUND;
+		fbAlarmFileNotFound.Raise(0);
+		
+	ERR_RECIPE_MISMATCH:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_MISMATCH;
+		fbAlarmRecipeMismatch.Raise(0);
+		
+	ERR_RECIPE_SAVE_ERR:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_SAVE_ERR;
+		fbAlarmRecipeSave.Raise(0);
+		
+	ERR_RECIPE_NOT_FOUND:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_NOT_FOUND;
+		fbAlarmRecipeNotFound.Raise(0);
+		
+	ERR_RECIPE_DEFINITION_NOT_FOUND:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_DEFINITION_NOT_FOUND;
+		fbAlarmDefNotFound.Raise(0);
+		
+	ERR_RECIPE_ALREADY_EXIST:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_ALREADY_EXIST;
+		fbAlarmAlreadyExist.Raise(0);
+		
+	ERR_NO_RECIPE_MANAGER_SET:
+		eLastResult := RECIPES_MANAGER_ERR_NO_RECIPE_MANAGER_SET;
+		fbAlarmNoManagerSet.Raise(0);
+		
+	ERR_RECIPE_NOT_ALL_VARIABLES_WERE_LOADED:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPE_NOT_ALL_VARIABLES_WERE_LOADED;
+		fbAlarmNotAllVariable.Raise(0);
+		
+	ERR_RECIPE_NOMEMORY:
+		eLastResult := RECIPES_MANAGER_ERR_NOMEMORY;
+		fbAlarmRecipeNoMemory.Raise(0);
+		
+	ERR_RECIPE_MANAGER_LOCKED_DURING_ONLINE_CHANGE:
+		eLastResult := RECIPES_MANAGER_ERR_RECIPES_MANAGER_LOCKED;
+		fbAlarmManagerLocked.Raise(0);
+		
+	ERR_SOURCE_EXHAUSTED:
+		eLastResult := RECIPES_MANAGER_ERR_SOURCE_EXHAUSTED;
+		fbAlarmSourceExhausted.Raise(0);
+		
+	ERR_TARGET_EXHAUSTED:
+		eLastResult := RECIPES_MANAGER_ERR_TARGET_EXHAUSTED;
+		fbAlarmTargetExhausted.Raise(0);
+		
+	ERR_SOURCE_ILLEGAL:
+		eLastResult := RECIPES_MANAGER_ERR_SOURCE_ILLEGAL;
+		fbAlarmSourceIllegal.Raise(0);
+		
+END_CASE
+
+(* Report errors that occur *)
+rtError(CLK:=bError);
+
+IF rtError.Q THEN 
+	fbMachineLogger.MR_AddLogs(FUN_MergeStrings5('Recipes_Manager', ' : Error occured (error ID: ', UDINT_TO_STRING(iErrorID), ')', ''));
+END_IF
+
+(* Run state machine *)
+StateMachine();
+
+(* Execute recipe manager instance *)
+fbRecipeManager();]]></ST>
+    </Implementation>
+    <Folder Name="FirstCycle" Id="{3a93af1d-0238-40c8-8c81-b04af91c2b9c}" />
+    <Folder Name="Internal" Id="{e25e4cbe-0fb3-40f6-b8f6-8d08a075afa8}" />
+    <Folder Name="Properties" Id="{ba80f303-2ac4-4bba-8e0c-9bea31ec7390}">
+      <Folder Name="Status" Id="{ec54e2af-ae77-4507-8bb9-9afd3e39ae21}" />
+    </Folder>
+    <Folder Name="Requests" Id="{3b47fb7f-1901-490c-b0ec-93fd00709009}" />
+    <Folder Name="StateMachine" Id="{7e8b9ce8-3e18-4d9c-aef6-3a4eb51d2b25}" />
+    <Property Name="Active" Id="{cbbc0377-5aea-4dd8-be07-dfd1c7a865bf}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Active : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{e84b148b-032d-42b2-b6f0-98fdf2bf551c}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Active REF= bActive;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Busy" Id="{44ee4615-1f01-4f89-90b9-536792b81058}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Busy : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{7b479023-90f6-40b5-ab13-6889c74a33b6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Busy REF= bBusy;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Error" Id="{3336d890-ab19-426e-95eb-5587016136ed}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Error : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{77e5b6a9-c37d-4726-b648-7433648b40b6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Error REF= bError;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ErrorID" Id="{4ef50020-973b-448c-a109-108864119e8f}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY ErrorID : REFERENCE TO DWORD]]></Declaration>
+      <Get Name="Get" Id="{1ede6387-2b30-4658-b6a4-287625831669}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ErrorID REF= iErrorId;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="LastResult" Id="{28b2be4a-7822-43ce-89a1-ba969f071717}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY LastResult : REFERENCE TO E_RecipesManagerReturns]]></Declaration>
+      <Get Name="Get" Id="{04a1d3da-dd26-4736-ad05-cb59abeb6a0b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[LastResult REF= eLastResult;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="M_GetRecipesCount" Id="{151f1638-f2cb-4048-b8ad-bda883800d7f}" FolderPath="Internal\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetRecipesCount
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iRecipesCount := INT_TO_USINT(fbRecipeManager.GetRecipeCount(sRecipesDefinition));
+iLastResult := fbRecipeManager.GetLastError();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetRecipesNames" Id="{48796e36-0793-4363-89d3-37fd2c6e9f32}" FolderPath="Internal\">
+      <Declaration><![CDATA[METHOD M_GetRecipesNames : BOOL
+VAR
+	i : USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//FOR i := 0 TO iMAX_NUMBER_OF_RECIPES-1 DO
+	iLastResult := fbRecipeManager.GetRecipeNames( 	RecipeDefinitionName	:= sRecipesDefinition,
+													pStrings				:= ADR(arrRecipesNames),
+													iSize 					:= iMAX_RECIPE_NAME_LENGTH,
+													iStartIndex 			:= 0);
+//END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetVariableNames" Id="{ecfcf28f-c6c7-41a8-b4d1-9cf404608d7c}" FolderPath="Internal\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetVariableNames
+VAR
+	i : USINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//FOR i := 0 TO iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1 DO
+	iLastResult := fbRecipeManager.GetRecipeVariableNames(	RecipeDefinitionName	:= sRecipesDefinition,
+															RecipeName				:= sRecipeName,
+															pStrings 				:= ADR(arrVariableNames),
+															iSize 					:= iMAX_NUMBER_OF_VARIABLES_IN_RECIPES,
+															iStartIndex				:= 0);
+//END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_GetVariableValues" Id="{7f67cc20-881d-4fbc-a2ac-df1d0a96fdb1}" FolderPath="Internal\">
+      <Declaration><![CDATA[METHOD PRIVATE M_GetVariableValues
+VAR
+	i : USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//FOR i := 0 TO iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1 DO
+iLastResult := fbRecipeManager.GetRecipeValues( RecipeDefinitionName 	:= sRecipesDefinition,
+												RecipeName 				:= sRecipeName,
+												pStrings 				:= ADR(arrRecipeValues),
+												iSize 					:= iMAX_NUMBER_OF_VARIABLES_IN_RECIPES,
+												iStartIndex 			:= 0,
+												iStringLength 			:= 80);//255);
+//	IF iLastResult <> ERR_OK THEN
+//		EXIT;
+//	END_IF
+//END_FOR
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReloadRecipes" Id="{0b8f14ff-deb5-4d9c-95d2-423572b8dfb4}" FolderPath="Internal\">
+      <Declaration><![CDATA[METHOD PRIVATE M_ReloadRecipes
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.ReloadRecipes(sRecipesDefinition);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SetStoragePath" Id="{4fcd8844-7455-4b47-bfee-c2b092f7a302}" FolderPath="Internal\">
+      <Declaration><![CDATA[METHOD PRIVATE M_SetStoragePath]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bLastSetStoragePathResult := fbRecipeManager.SetStoragePath(sStoragePath);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Abort" Id="{56ffdb4a-e10a-42c4-aedd-097dd35b30d3}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Abort : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine >= RECIPES_MANAGER_INITIALIZATION THEN
+	bAbort := TRUE;
+	bBusy := TRUE;
+	eStateMachine := RECIPES_MANAGER_ABORTING;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : abort requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_UNINITIALIZED THEN
+	bAbort := FALSE;
+	bBusy := FALSE;
+	MR_Abort := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : abort done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Backup" Id="{525feba5-8e93-4b66-9fff-be633328ac20}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Backup : BOOL
+VAR_INPUT
+	sRecipesDefinition		: STRING;
+	sRecipeName				: STRING;
+	sBackupStoragePath		: STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bBackup := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	THIS^.sBackupStoragePath := sBackupStoragePath;
+	sStoragePath := sBackupStoragePath;
+	M_SetStoragePath();
+	M_ReloadRecipes();
+	MR_Backup := FALSE;
+	eStateMachine := RECIPES_MANAGER_BACKUP;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe backup requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_BACKUP_DONE THEN
+	sStoragePath := sLocalStoragePath;
+	M_SetStoragePath();
+	bBackup := FALSE;
+	bBusy := FALSE;
+	MR_Backup := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe backup done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Create" Id="{258580ca-cb92-4b81-8cf3-c33b30a3387c}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Create : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bCreate := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_CREATE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe creation requested'));		
+	
+ELSIF eStateMachine = RECIPES_MANAGER_CREATE_DONE THEN
+	bCreate := FALSE;
+	bBusy := FALSE;
+	MR_Create := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe creation done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_FirstCycle" Id="{7f4d931e-c133-4cc3-8b1d-91f8c5fd81d6}" FolderPath="FirstCycle\">
+      <Declaration><![CDATA[METHOD MR_FirstCycle : BOOL
+VAR_INPUT
+	sLocalStoragePath	: STRING;	(* Path where all recipes are stored *)
+	sRecipesDefinition	: STRING;	(* Template of recipe defined in RecipeManager - IDE *)
+	sDefaultRecipeName	: STRING;	(* Default recipes loaded after start *)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.sLocalStoragePath := sLocalStoragePath;
+THIS^.sRecipesDefinition := sRecipesDefinition;
+THIS^.sRecipeName := sDefaultRecipeName;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_GetRecipesNames" Id="{b80e0236-8b3f-4a34-9027-ec4b5f662f6a}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_GetRecipesNames : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bGetNameArray := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	eStateMachine := RECIPES_MANAGER_GET_RECIPE_NAME_ARRAY;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : get receipe name requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_GET_RECIPE_NAME_ARRAY_DONE THEN
+	bGetNameArray := FALSE;
+	bBusy := FALSE;
+	MR_GetRecipesNames := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : get receipe name done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_GetVariablesNames" Id="{4bb7dd9c-f6a9-478e-ab6e-34e39c5f1cbb}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_GetVariablesNames : BOOL
+VAR_INPUT
+	sRecipesDefinition	: STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bGetVariableNames := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	eStateMachine := RECIPES_MANAGER_GET_RECIPE_VARIABLE_NAMES;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : get variable name requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_GET_RECIPE_VARIABLE_NAMES_DONE THEN
+	bGetNameArray := FALSE;
+	bBusy := FALSE;
+	MR_GetVariablesNames := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : get variable name done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_GetVariableValues" Id="{f0fb4c49-d002-4e6e-8789-7bfa4ec76679}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_GetVariableValues : BOOL
+VAR_INPUT
+	sRecipesDefinition	: STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bGetVariableValues := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	eStateMachine := RECIPES_MANAGER_GET_RECIPE_VARIABLE_VALUES;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : get variable value requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_GET_RECIPE_VARIABLE_VALUES_DONE THEN
+	bGetVariableValues := FALSE;
+	bBusy := FALSE;
+	MR_GetVariableValues := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : get variable value done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Init" Id="{e8bd6a09-f051-4f4e-8803-34b4a0ac7ce1}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_UNINITIALIZED THEN
+	bInit := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : initialization requested'));	
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	eStateMachineInit := RECIPES_MANAGER_INIT_SET_STORAGE_PATH;
+	eStateMachine := RECIPES_MANAGER_INITIALIZATION;
+	
+//ELSIF eStateMachine = RECIPES_MANAGER_INITIALIZATION AND eStateMachineInit = RECIPES_MANAGER_INIT_DONE THEN
+ELSIF eStateMachine = RECIPES_MANAGER_IDLE AND bInit THEN
+	bInit := FALSE;	
+	bBusy := FALSE;
+	MR_Init := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : initialization done'));	
+	
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Load" Id="{5c732737-739a-4b12-a7e1-a8fae899cde6}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Load : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bLoad := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_LOAD;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe load requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_LOAD_DONE THEN
+	bLoad := FALSE;
+	bBusy := FALSE;
+	MR_Load := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe load done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_LoadAndWritte" Id="{32b75dcd-b8dd-4220-9567-7ebcfcab0cd8}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_LoadAndWritte : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bLoadAndWrite := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_LOAD_AND_WRITE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe loading and writing requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_LOAD_AND_WRITE_DONE THEN
+	bLoadAndWrite := FALSE;
+	bBusy := FALSE;
+	MR_LoadAndWritte := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe loading and writing done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Read" Id="{c93ba0d5-8be8-491f-85ce-caabb7d39ab6}" FolderPath="Requests\">
+      <Declaration><![CDATA[(*
+When the command is executed, TwinCAT overwrites the values of the selected recipe with the values read from the controller.
+In the process, the values are implicitly stored (in a file on the controller) and simultaneously displayed in the table of the recipe definition.
+*)
+METHOD MR_Read : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bRead := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_READ;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe read requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_READ_DONE THEN
+	bRead := FALSE;
+	bBusy := FALSE;
+	MR_Read := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe read done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_ReadAndSave" Id="{77730a74-a966-411c-aeb1-ccb9c8b19015}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_ReadAndSave : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bReadAndSave := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_READ_AND_SAVE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe read and save requested'));		
+	
+ELSIF eStateMachine = RECIPES_MANAGER_READ_AND_SAVE_DONE THEN
+	bReadAndSave := FALSE;
+	bBusy := FALSE;
+	MR_ReadAndSave := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe read and save done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Reload" Id="{77b9396c-03f7-410c-97aa-4ac63e9c1322}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Reload : BOOL
+VAR_INPUT
+	sRecipeName : STRING;
+	sRecipesDefinition : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bReload := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	eStateMachine := RECIPES_MANAGER_RELOAD;
+	MR_Reload := FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe reloading requested'));		
+	
+ELSIF eStateMachine = RECIPES_MANAGER_RELOAD_DONE THEN
+	bReload := FALSE;
+	bBusy := FALSE;
+	MR_Reload := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe reloading done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_ReloadExternal" Id="{b19b2070-c2d4-4cab-b14c-d34c25c80324}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_ReloadExternal : BOOL
+VAR_INPUT
+	sRecipeName 			: STRING;
+	sRecipesDefinition 		: STRING;
+	sBackupStoragePath		: STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bReload := TRUE;
+	MR_ReloadExternal := FALSE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	THIS^.sBackupStoragePath := sBackupStoragePath;
+	sStoragePath := sBackupStoragePath;
+	M_SetStoragePath();
+	eStateMachine := RECIPES_MANAGER_RELOAD;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe reloading requested'));		
+	
+ELSIF eStateMachine = RECIPES_MANAGER_RELOAD_DONE THEN
+	sStoragePath := sLocalStoragePath;
+	M_SetStoragePath();
+	bReload := FALSE;
+	bBusy := FALSE;
+	MR_ReloadExternal := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe reloading done'));
+	
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Remove" Id="{55fcd12b-99dd-4f98-a06d-2375eb3ff8ac}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Remove : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bRemove := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_REMOVE;
+	eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_OPERATION;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe removal requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_REMOVE_DONE THEN
+	bRemove := FALSE;
+	bBusy := FALSE;
+	MR_Remove := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe removal done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Restore" Id="{5887414e-0a69-4502-9ffc-d49d75909ba0}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Restore : BOOL
+VAR_INPUT
+	sRecipesDefinition		: STRING;
+	sRecipeName				: STRING;
+	sBackupStoragePath		: STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bRestore := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	MR_Restore := FALSE;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	THIS^.sBackupStoragePath := sBackupStoragePath;
+	sStoragePath := sBackupStoragePath;
+	M_SetStoragePath();
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_RESTORE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe backup requested'));	
+	
+ELSIF eStateMachine = RECIPES_MANAGER_RESTORE_DONE THEN
+	bRestore := FALSE;
+	bBusy := FALSE;
+	MR_Restore := TRUE;
+	sStoragePath := sLocalStoragePath;
+	M_SetStoragePath();
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe backup done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Save" Id="{5371c754-49bf-43e3-bd92-26c710a39499}" FolderPath="Requests\">
+      <Declaration><![CDATA[(*
+When the command is executed, TwinCAT saves the values of the selected recipe in a file with the extension *.txtrecipe, whose name must be defined.
+The standard dialog for saving a file opens. The format results from the settings of the Recipe Manager in the Storage tab.
+*)
+METHOD MR_Save : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bSave:= TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_SAVE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe save requested'));		
+	
+ELSIF eStateMachine = RECIPES_MANAGER_SAVE_DONE THEN
+	bSave := FALSE;
+	bBusy := FALSE;
+	MR_Save := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe save done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Writte" Id="{4b88d5c3-6d2b-469b-a84e-8de73b8a6d90}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_Writte : BOOL
+VAR_INPUT
+	sRecipesDefinition : STRING;
+	sRecipeName : STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eStateMachine = RECIPES_MANAGER_IDLE THEN
+	bWrite := TRUE;
+	bBusy := TRUE;
+	bError := FALSE;
+	iErrorId := 0;
+	THIS^.sRecipesDefinition := sRecipesDefinition;
+	THIS^.sRecipeName := sRecipeName;
+	M_ReloadRecipes();
+	eStateMachine := RECIPES_MANAGER_WRITE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe writing requested'));		
+	
+ELSIF eStateMachine = RECIPES_MANAGER_WRITE_DONE THEN
+	bWrite := FALSE;
+	bBusy := FALSE;
+	MR_Writte := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT('Recipes_Manager',' : recipe writing done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Aborting" Id="{f9cb5a08-56e0-4b8b-b476-11b27cfb4732}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Aborting
+VAR
+	i: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(* Reseting internal command bits*)
+bInit				:= FALSE;
+bCreate				:= FALSE;
+bLoad				:= FALSE;
+bLoadAndWrite		:= FALSE;
+bRead				:= FALSE;
+bReadAndSave		:= FALSE;
+bRemove				:= FALSE;
+bSave				:= FALSE;
+bWrite				:= FALSE;
+bGetRecipeCount		:= FALSE;
+bGetNameArray		:= FALSE;
+bGetVariableNames	:= FALSE;
+bGetRecipeNames		:= FALSE;
+bGetVariableValues	:= FALSE;
+bReload				:= FALSE;
+bRestore			:= FALSE;
+bBackup				:= FALSE;
+
+	
+bActive	:= FALSE;
+bBusy 	:= FALSE;
+	
+bLastSetStoragePathResult := FALSE;
+iRecipesCount := 0;
+
+FOR i := 0 TO iMAX_NUMBER_OF_RECIPES - 1 BY 1 DO
+	MEMSET(ADR(arrVariableNames[i]),0,SIZEOF(arrVariableNames[i]));
+END_FOR
+
+FOR i := 0 TO iMAX_NUMBER_OF_VARIABLES_IN_RECIPES - 1 BY 1 DO
+	MEMSET(ADR(arrRecipesNames[i]),0,SIZEOF(arrRecipesNames[i]));
+END_FOR
+
+FOR i := 0 TO iMAX_NUMBER_OF_VARIABLES_IN_RECIPES - 1 BY 1 DO
+	MEMSET(ADR(arrRecipeValues[i]),0,SIZEOF(arrRecipeValues[i]));
+END_FOR
+
+
+eStateMachine := RECIPES_MANAGER_UNINITIALIZED;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Backup" Id="{e6ed7e15-ef7c-4cdc-8d44-a9e5612d1b6b}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Backup
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateMachineBackup OF
+	RECIPES_MANAGER_BACKUP_OPERATION:	
+		iLastResult := fbRecipeManager.CreateRecipe(sRecipesDefinition, sRecipeName);
+
+		IF iLastResult = ERR_OK THEN
+			eStateMachineBackup := RECIPES_MANAGER_BACKUP_RELOAD;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_BACKUP_RELOAD:
+		iLastResult := fbRecipeManager.ReloadRecipes(sRecipesDefinition);
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineBackup := RECIPES_MANAGER_BACKUP_GET_RECIPES_COUNT;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		END_IF
+		
+	RECIPES_MANAGER_BACKUP_GET_RECIPES_COUNT:
+		M_GetRecipesCount();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineBackup := RECIPES_MANAGER_BACKUP_GET_RECIPES_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_BACKUP_GET_RECIPES_NAMES:
+		M_GetRecipesNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineBackup := RECIPES_MANAGER_BACKUP_GET_VARIABLE_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_BACKUP_GET_VARIABLE_NAMES:
+		M_GetVariableNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineBackup := RECIPES_MANAGER_BACKUP_GET_VARIABLE_VALUES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		END_IF
+		
+	RECIPES_MANAGER_BACKUP_GET_VARIABLE_VALUES:
+		M_GetVariableValues();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineBackup := RECIPES_MANAGER_BACKUP_BACKUP_DONE;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_BACKUP_BACKUP_DONE:
+		eStateMachineBackup := RECIPES_MANAGER_BACKUP_OPERATION;
+		eStateMachine := RECIPES_MANAGER_BACKUP_DONE;
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_BackupDone" Id="{eb4f0abc-64b2-419e-a524-da1d601ba71b}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_BackupDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bBackup THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+	eStateMachineBackup := RECIPES_MANAGER_BACKUP_OPERATION;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Create" Id="{6ba5f49a-119b-4de6-8c1e-d4e73b54be02}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Create]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateMachineCreateRemove OF
+	RECIPES_MANAGER_CREATE_REMOVE_OPERATION:	
+		iLastResult := fbRecipeManager.CreateRecipe(sRecipesDefinition, sRecipeName);
+
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_RELOAD;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_RELOAD:
+		iLastResult := fbRecipeManager.ReloadRecipes(sRecipesDefinition);
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_COUNT;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		END_IF
+		
+	RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_COUNT:
+		M_GetRecipesCount();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_NAMES:
+		M_GetRecipesNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_NAMES:
+		M_GetVariableNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_VALUES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		END_IF
+		
+	RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_VALUES:
+		M_GetVariableValues();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_DONE;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_DONE:
+		eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_OPERATION;
+		eStateMachine := RECIPES_MANAGER_CREATE_DONE;
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_CreateDone" Id="{09318662-c9f1-449b-a117-0158d46bcb50}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_CreateDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bCreate THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+	eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_OPERATION;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GetRecipesNames" Id="{46312d88-fa33-43de-8083-c76f0ea3900f}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GetRecipesNames
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_GetRecipesNames();
+																								
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+IF arrRecipesNames[iRecipesCount] <> '' THEN
+	eStateMachine := RECIPES_MANAGER_GET_RECIPE_NAME_ARRAY_DONE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GetRecipesNamesDone" Id="{9e2f23f7-f81f-4e08-ba2f-56137b2aa20c}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GetRecipesNamesDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bGetNameArray THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GetVariableNames" Id="{513d8fec-3890-4f08-b2b7-22dbcae6349b}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GetVariableNames
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_GetVariableNames();
+																								
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_GET_RECIPE_VARIABLE_NAMES_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GetVariableNamesDone" Id="{cf4ee14d-4387-45a6-a3fa-bbb4b121976b}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GetVariableNamesDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bGetVariableNames THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GetVariableValues" Id="{4142a154-84ab-485a-80da-6b1cd8906a21}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GetVariableValues
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_GetVariableValues();
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_GET_RECIPE_VARIABLE_VALUES_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GetVariableValuesDone" Id="{cf01ad81-4e4b-4fb5-8032-04af11335624}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GetVariableValuesDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bGetVariableValues THEN
+	eStateMachine := RECIPES_MANAGER_READ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Idle" Id="{c7f9e013-f0a6-465f-9eae-60569663631b}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Idle
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Initialization" Id="{7cc083d4-0b12-432f-ab9f-6dff6b30c8fc}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Initialization
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateMachineInit OF
+    RECIPES_MANAGER_INIT_SET_STORAGE_PATH:
+		sStoragePath := sLocalStoragePath;
+        M_SetStoragePath(); 
+        
+        IF bLastSetStoragePathResult THEN
+            eStateMachineInit := RECIPES_MANAGER_INIT_RELOAD;
+        ELSE
+            bError  := TRUE;
+            iErrorId := fbRecipeManager.GetLastError();
+            eStateMachine := RECIPES_MANAGER_ABORTING;
+        END_IF
+        
+    RECIPES_MANAGER_INIT_RELOAD:
+        M_ReloadRecipes();
+        
+        IF iLastResult = ERR_OK THEN
+            eStateMachineInit := RECIPES_MANAGER_INIT_GET_RECIPES_COUNT;
+        ELSE
+            bError  := TRUE;
+            iErrorId := fbRecipeManager.GetLastError();
+            eStateMachine := RECIPES_MANAGER_ABORTING;
+        END_IF
+    
+    RECIPES_MANAGER_INIT_GET_RECIPES_COUNT:
+        M_GetRecipesCount();
+        
+        IF iLastResult = ERR_OK THEN
+            eStateMachineInit := RECIPES_MANAGER_INIT_GET_RECIPES_NAMES;
+        ELSE
+            bError  := TRUE;
+            iErrorId := fbRecipeManager.GetLastError();
+            eStateMachine := RECIPES_MANAGER_ABORTING;
+        END_IF
+    
+    RECIPES_MANAGER_INIT_GET_RECIPES_NAMES:
+        M_GetRecipesNames();
+                                                            
+        IF iLastResult = ERR_OK THEN
+            eStateMachineInit := RECIPES_MANAGER_INIT_DONE;
+        ELSE
+            bError  := TRUE;
+            iErrorId := fbRecipeManager.GetLastError();
+            eStateMachine := RECIPES_MANAGER_ABORTING;
+        END_IF
+    (*
+	(* Not included because removing all recipes from device memory will result error occurring *)
+    RECIPES_MANAGER_INIT_GET_VARIABLE_NAMES:
+	    M_GetVariableNames(); 
+                                                                
+        IF iLastResult = ERR_OK THEN
+            eStateMachineInit := RECIPES_MANAGER_INIT_GET_VARIABLE_VALUES;
+        ELSE
+            bError  := TRUE;
+           iErrorId := fbRecipeManager.GetLastError();
+            eStateMachine := RECIPES_MANAGER_ABORTING;
+        END_IF
+    
+    RECIPES_MANAGER_INIT_GET_VARIABLE_VALUES:
+        M_GetVariableValues(); //
+                                                        
+        IF iLastResult = ERR_OK THEN
+            eStateMachineInit := RECIPES_MANAGER_INIT_DONE;
+        ELSE
+            bError  := TRUE;
+            iErrorId := fbRecipeManager.GetLastError();
+            eStateMachine := RECIPES_MANAGER_ABORTING;
+        END_IF
+    *)
+	
+    RECIPES_MANAGER_INIT_DONE:
+		eStateMachineInit := RECIPES_MANAGER_INIT_SET_STORAGE_PATH;
+        eStateMachine := RECIPES_MANAGER_IDLE;
+    
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Load" Id="{e45c359d-3814-454c-ac77-31f31c8bec4d}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Load]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.LoadRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_LOAD_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_LoadDone" Id="{281eec4e-f82e-4a0c-9463-8b13ca2c2669}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_LoadDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bLoad THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_LoadWritte" Id="{438e24e6-b1ab-4938-9eb5-1554726f07f1}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_LoadWritte]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.LoadAndWriteRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_LOAD_AND_WRITE_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_LoadWritteDone" Id="{a1a66b05-fff6-4f2d-be47-286af6c416b8}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_LoadWritteDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bLoadAndWrite THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Read" Id="{d9737bfe-3788-41b4-9479-0a7be5c52181}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Read
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.ReadRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_READ_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_ReadDone" Id="{6f497740-3ebc-4ca9-9bbe-fa85353e025f}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_ReadDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bRead THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_ReadSave" Id="{b281d86b-23fa-4476-a493-dbabdd65c8d4}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_ReadSave
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.ReadAndSaveRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_READ_AND_SAVE_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_ReadSaveDone" Id="{2078680d-8588-4f1f-8eb3-cb79e38eba71}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_ReadSaveDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bReadAndSave THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Reload" Id="{e83c5029-1ba1-4652-a5fd-a5c4530c295e}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Reload
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateMachineReload OF
+	RECIPE_MANAGER_RELOAD_OPERATION:
+		iLastResult := fbRecipeManager.ReloadRecipes(sRecipesDefinition);
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineReload := RECIPE_MANAGER_RELOAD_GET_RECIPES_COUNT;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_RELOAD_DONE;
+		END_IF
+		
+	RECIPE_MANAGER_RELOAD_GET_RECIPES_COUNT:
+		M_GetRecipesCount();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineReload := RECIPE_MANAGER_RELOAD_GET_RECIPES_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_RELOAD_DONE;
+		END_IF
+	
+	RECIPE_MANAGER_RELOAD_GET_RECIPES_NAMES:
+		M_GetRecipesNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineReload := RECIPE_MANAGER_RELOAD_GET_VARIABLE_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_RELOAD_DONE;
+		END_IF
+	
+	RECIPE_MANAGER_RELOAD_GET_VARIABLE_NAMES:
+		M_GetVariableNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineReload := RECIPE_MANAGER_RELOAD_GET_VARIABLE_VALUES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_RELOAD_DONE;
+		END_IF
+		
+	RECIPE_MANAGER_RELOAD_GET_VARIABLE_VALUES:
+		M_GetVariableValues();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineReload := RECIPE_MANAGER_RELOAD_DONE;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_RELOAD_DONE;
+		END_IF
+	
+	RECIPE_MANAGER_RELOAD_DONE:
+		eStateMachineReload := RECIPE_MANAGER_RELOAD_OPERATION;
+		eStateMachine := RECIPES_MANAGER_RELOAD_DONE;
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_ReloadDone" Id="{4d37fc5c-ca51-43a0-b201-cacc227dd3b7}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_ReloadDone
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bReload THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Remove" Id="{6fd0bc45-1ac1-417d-b9fe-ba6f953341ef}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Remove
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateMachineCreateRemove OF
+	RECIPES_MANAGER_CREATE_REMOVE_OPERATION:
+		iLastResult := fbRecipeManager.DeleteRecipe(sRecipesDefinition, sRecipeName);
+
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_RELOAD;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_RELOAD:
+		iLastResult := fbRecipeManager.ReloadRecipes(sRecipesDefinition);
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_COUNT;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		END_IF
+		
+	RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_COUNT:
+		M_GetRecipesCount();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_GET_RECIPES_NAMES:
+		M_GetRecipesNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_NAMES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_NAMES:
+		M_GetVariableNames();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_VALUES;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		END_IF
+		
+	RECIPES_MANAGER_CREATE_REMOVE_GET_VARIABLE_VALUES:
+		M_GetVariableValues();
+		
+		IF iLastResult = ERR_OK THEN
+			eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_DONE;
+		ELSE
+			bError := TRUE;
+			iErrorId := fbRecipeManager.GetLastError();
+			eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		END_IF
+	
+	RECIPES_MANAGER_CREATE_REMOVE_DONE:
+		eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_OPERATION;
+		eStateMachine := RECIPES_MANAGER_REMOVE_DONE;
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_RemoveDone" Id="{500808c9-1253-4d98-a3a3-b9b98b1ad108}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_RemoveDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bRemove THEN
+	eStateMachineCreateRemove := RECIPES_MANAGER_CREATE_REMOVE_OPERATION;
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Restore" Id="{5ca6565e-7f10-49f9-ad1f-8324d21ae438}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Restore
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.LoadAndWriteRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_RESTORE_DONE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_RestoreDone" Id="{7fd56815-642b-4683-a771-fdafca9ec20f}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_RestoreDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bRestore THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Save" Id="{f8516cde-9bcd-4672-81a0-4baeabe334cd}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Save
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.SaveRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_SAVE_DONE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_SaveDone" Id="{9ded6bd0-9b35-4969-b5e7-9d1dcfeaf950}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_SaveDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bSave THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Uninitialized" Id="{a2b64cca-bcaf-42d4-94cb-7b826f2d4cd7}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Uninitialized
+VAR
+	i: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Writte" Id="{f12bd55b-ff0b-40b2-99ad-244719ce2c05}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Writte
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[iLastResult := fbRecipeManager.WriteRecipe(sRecipesDefinition, sRecipeName);
+
+IF iLastResult <> ERR_OK THEN
+	bError := TRUE;
+	iErrorId := fbRecipeManager.GetLastError();
+END_IF
+
+eStateMachine := RECIPES_MANAGER_WRITE_DONE;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_WritteDone" Id="{de88b520-6304-436e-9309-6e6681bdce8f}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_WritteDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bWrite THEN
+	eStateMachine := RECIPES_MANAGER_IDLE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="RecipeCount" Id="{f39d4798-a969-42f6-a2c2-3bdd295971ff}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY RecipeCount : REFERENCE TO USINT]]></Declaration>
+      <Get Name="Get" Id="{5b181757-958f-4b9c-8ccb-ff53f49e4b37}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RecipeCount REF= iRecipesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="RecipesDefinition" Id="{7647255f-738d-45f0-9189-5d1b478c8ea8}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY RecipesDefinition : REFERENCE TO STRING]]></Declaration>
+      <Get Name="Get" Id="{23ac5e40-5b59-4c7c-aa82-7fc0c324b59a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RecipesDefinition REF= sRecipesDefinition;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="RecipesNames" Id="{4d19f210-1e48-4bfe-9c38-7c8b8e538b02}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY RecipesNames : REFERENCE TO ARRAY	[0..iMAX_NUMBER_OF_RECIPES-1] OF STRING;]]></Declaration>
+      <Get Name="Get" Id="{c3345ef6-0b59-4798-b50c-001ffc5186d6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RecipesNames REF= arrRecipesNames;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="RecipeValues" Id="{d6545f9d-b6ce-4a10-b89d-b5d665df15ef}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY RecipeValues : REFERENCE TO ARRAY [0..iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1] OF STRING
+//PROPERTY RecipeValues : ARRAY [0..iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1] OF STRING(iMAX_RECIPE_NAME_LENGTH)]]></Declaration>
+      <Get Name="Get" Id="{ecf3e36f-016d-4fcd-8d1f-7c6c435a50af}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RecipeValues REF= arrRecipeValues;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="RecipeValuesAdr" Id="{656e5bb2-eb8d-4eca-b485-e3efca8b426f}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY RecipeValuesAdr : REFERENCE TO ARRAY [0..iMAX_NUMBER_OF_VARIABLES_IN_RECIPES-1] OF PVOID]]></Declaration>
+      <Get Name="Get" Id="{ada50c34-7ea6-4b5c-bfe4-b43397e613ec}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RecipeValuesAdr REF= arrRecipeValuesAdr;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="RecipeValuesAdrAvailable" Id="{9d5c293e-a268-4cd5-8bd9-9d0e96b786db}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY RecipeValuesAdrAvailable : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{96fb835b-26da-4ba3-8661-a940a8f0fdeb}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RecipeValuesAdrAvailable REF= bRecipeFileValuesAdrAvailable;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="State" Id="{9e0ba98d-c5bc-4625-8e52-6baff9ced3a7}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY State : REFERENCE TO E_RecipesManagerState;]]></Declaration>
+      <Get Name="Get" Id="{93d2d2e2-7761-4d54-8793-486ee3fb7d1f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[State REF= eStateMachine;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="StateMachine" Id="{d6c18ae0-44be-4d3c-ae44-2fddcf08917a}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED StateMachine
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eStateMachine OF
+	RECIPES_MANAGER_UNINITIALIZED:
+		MS_Uninitialized();
+		
+	RECIPES_MANAGER_INITIALIZATION:
+		MS_Initialization();
+		
+	RECIPES_MANAGER_IDLE:
+		MS_Idle();
+		
+	RECIPES_MANAGER_CREATE:
+		MS_Create();
+		
+	RECIPES_MANAGER_CREATE_DONE:
+		MS_CreateDone();
+		
+	RECIPES_MANAGER_REMOVE:
+		MS_Remove();
+		
+	RECIPES_MANAGER_REMOVE_DONE:
+		MS_RemoveDone();
+		
+	RECIPES_MANAGER_LOAD:
+		MS_Load();
+		
+	RECIPES_MANAGER_LOAD_DONE:
+		MS_LoadDone();
+		
+	RECIPES_MANAGER_SAVE:
+		MS_Save();
+		
+	RECIPES_MANAGER_SAVE_DONE:
+		MS_SaveDone();
+		
+	RECIPES_MANAGER_READ:
+		MS_Read();
+		
+	RECIPES_MANAGER_READ_DONE:
+		MS_ReadDone();	
+	
+	RECIPES_MANAGER_READ_AND_SAVE:
+		MS_ReadSave();
+	
+	RECIPES_MANAGER_READ_AND_SAVE_DONE:
+		MS_ReadSaveDone();
+	
+	RECIPES_MANAGER_WRITE:
+		MS_Writte();
+	
+	RECIPES_MANAGER_WRITE_DONE:
+		MS_WritteDone();
+	
+	RECIPES_MANAGER_LOAD_AND_WRITE:
+		MS_LoadWritte();
+	
+	RECIPES_MANAGER_LOAD_AND_WRITE_DONE:
+		MS_LoadWritteDone();
+		
+	RECIPES_MANAGER_GET_RECIPE_NAME_ARRAY:
+		MS_GetRecipesNames();
+	
+	RECIPES_MANAGER_GET_RECIPE_NAME_ARRAY_DONE:
+		MS_GetRecipesNamesDone();
+		
+	RECIPES_MANAGER_GET_RECIPE_VARIABLE_NAMES:
+		MS_GetVariableNames();
+	
+	RECIPES_MANAGER_GET_RECIPE_VARIABLE_NAMES_DONE:
+		MS_GetVariableNamesDone();
+		
+	RECIPES_MANAGER_GET_RECIPE_VARIABLE_VALUES:
+		MS_GetVariableValues();
+	
+	RECIPES_MANAGER_GET_RECIPE_VARIABLE_VALUES_DONE:
+		MS_GetVariableValuesDone();
+		
+	RECIPES_MANAGER_RELOAD:
+		MS_Reload();
+	
+	RECIPES_MANAGER_RELOAD_DONE:
+		MS_ReloadDone();
+	
+	RECIPES_MANAGER_BACKUP:
+		MS_Backup();
+	
+	RECIPES_MANAGER_BACKUP_DONE:
+		MS_BackupDone();
+		
+	RECIPES_MANAGER_RESTORE:
+		MS_Restore();
+	
+	RECIPES_MANAGER_RESTORE_DONE:
+		MS_RestoreDone();
+		
+	RECIPES_MANAGER_ABORTING:
+		MS_Aborting();
+	
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_RecipesControler">
+      <LineId Id="3" Count="183" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.Active.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.Busy.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.Error.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.ErrorID.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.LastResult.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.M_GetRecipesCount">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.M_GetRecipesNames">
+      <LineId Id="3" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.M_GetVariableNames">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.M_GetVariableValues">
+      <LineId Id="3" Count="10" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.M_ReloadRecipes">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.M_SetStoragePath">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Abort">
+      <LineId Id="3" Count="11" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Backup">
+      <LineId Id="3" Count="4" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="71" Count="1" />
+      <LineId Id="68" Count="2" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="73" Count="1" />
+      <LineId Id="65" Count="1" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="15" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Create">
+      <LineId Id="3" Count="6" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_FirstCycle">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_GetRecipesNames">
+      <LineId Id="3" Count="14" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_GetVariablesNames">
+      <LineId Id="3" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_GetVariableValues">
+      <LineId Id="3" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Init">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Load">
+      <LineId Id="3" Count="6" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_LoadAndWritte">
+      <LineId Id="3" Count="6" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Read">
+      <LineId Id="3" Count="6" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_ReadAndSave">
+      <LineId Id="3" Count="6" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Reload">
+      <LineId Id="3" Count="6" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="12" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_ReloadExternal">
+      <LineId Id="3" Count="1" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="5" Count="4" />
+      <LineId Id="57" Count="1" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="11" Count="2" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="80" Count="1" />
+      <LineId Id="77" Count="1" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="35" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Remove">
+      <LineId Id="3" Count="6" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="10" Count="9" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Restore">
+      <LineId Id="8" Count="4" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="13" Count="1" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="119" Count="1" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="17" Count="1" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="90" Count="1" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="95" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Save">
+      <LineId Id="3" Count="6" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MR_Writte">
+      <LineId Id="3" Count="6" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="10" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Aborting">
+      <LineId Id="50" Count="36" />
+      <LineId Id="48" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Backup">
+      <LineId Id="5" Count="67" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="73" Count="1" />
+      <LineId Id="3" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_BackupDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Create">
+      <LineId Id="3" Count="20" />
+      <LineId Id="73" Count="21" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="95" Count="21" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="71" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_CreateDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_GetRecipesNames">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="11" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_GetRecipesNamesDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_GetVariableNames">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_GetVariableNamesDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_GetVariableValues">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_GetVariableValuesDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Idle">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Initialization">
+      <LineId Id="119" Count="1" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="123" Count="40" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="189" Count="0" />
+      <LineId Id="166" Count="19" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="197" Count="0" />
+      <LineId Id="187" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Load">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_LoadDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_LoadWritte">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_LoadWritteDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Read">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_ReadDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_ReadSave">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_ReadSaveDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Reload">
+      <LineId Id="3" Count="56" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_ReloadDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Remove">
+      <LineId Id="3" Count="67" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="71" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_RemoveDone">
+      <LineId Id="3" Count="0" />
+      <LineId Id="6" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Restore">
+      <LineId Id="5" Count="5" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_RestoreDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Save">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_SaveDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Uninitialized">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_Writte">
+      <LineId Id="3" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.MS_WritteDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.RecipeCount.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.RecipesDefinition.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.RecipesNames.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.RecipeValues.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.RecipeValuesAdr.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.RecipeValuesAdrAvailable.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.State.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_RecipesControler.StateMachine">
+      <LineId Id="3" Count="96" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

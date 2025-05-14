@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FUN_Ceil" Id="{f27e6653-e208-4807-958a-ec1484066c84}" SpecialFunc="None">
+    <Declaration><![CDATA[(* 
+:Description: This function determines a integral value from a floating point number that is a fraction bigger than or equal that number
+*)
+FUNCTION FUN_Ceil : LREAL
+VAR_INPUT
+	lrValue : LREAL; (* Input value to round*)
+END_VAR
+VAR
+	lrIntegral	: LREAL; (* Integral part of input value *)
+	lrDecimal 	: LREAL; (* Decimal part of input value *)
+END_VAR
+(*
+Version history:
+
++-------------+------------+----------------+----------+------------------------------------------+
+|Date         | Version    | created under  | Author   | Remark                                   |
++=============+============+================+==========+==========================================+
+|2022-04      | 1.0.0.0    | V3.1.4024.22   | ADBO     | Function created		                  |
++-------------+------------+----------------+----------+------------------------------------------+
+
+*)
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* Get integral part *)
+lrIntegral := TRUNC(lrValue);
+
+(* Get decimal part *)
+lrDecimal := FRAC(lrValue);
+
+(*Check decimal value and set final result *)
+IF lrDecimal <> 0.0 THEN
+	FUN_Ceil := lrIntegral + 1.0;
+ELSE
+	FUN_Ceil := lrIntegral;
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_Ceil">
+      <LineId Id="42" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="26" Count="1" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="12" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,73 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_UniversalMachine" Id="{5e682e54-2466-42ee-986c-2b0a6d09cfb6}">
+    <Declaration><![CDATA[INTERFACE I_UniversalMachine
+]]></Declaration>
+    <Property Name="Active" Id="{b7a6a930-673e-4e62-98d8-139226bbeb4a}">
+      <Declaration><![CDATA[PROPERTY Active : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{798ed3d8-15cd-4c88-aae3-84e1de83fa39}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Error" Id="{97d678c0-06c0-43ca-af5d-32825c4afe11}">
+      <Declaration><![CDATA[PROPERTY Error : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{66c6bd1f-7be7-4110-871f-290570f63900}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="MR_Abort" Id="{b0ca977b-1d9c-4b04-8c2f-47722adbdff8}">
+      <Declaration><![CDATA[METHOD MR_Abort : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Init" Id="{ed6ca1d8-3e12-47eb-946d-be8535bc474b}">
+      <Declaration><![CDATA[METHOD MR_Init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Reset" Id="{d1f87636-19f7-4ced-9901-bb75572c6563}">
+      <Declaration><![CDATA[METHOD MR_Reset : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Start" Id="{f6f3692d-6a14-4af6-85c2-b3dd189170b3}">
+      <Declaration><![CDATA[METHOD MR_Start : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Stop" Id="{c250bc62-8a92-4ef1-a836-6529dea2814b}">
+      <Declaration><![CDATA[METHOD MR_Stop : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_SwitchToAuto" Id="{1a726535-2415-466b-abb9-e171ab934001}">
+      <Declaration><![CDATA[METHOD MR_SwitchToAuto : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_SwitchToManual" Id="{9335c731-cd2b-4901-9bbe-007f859e8f65}">
+      <Declaration><![CDATA[METHOD MR_SwitchToManual : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Property Name="Running" Id="{dd8c973c-4b45-417e-af11-ed2713a21366}">
+      <Declaration><![CDATA[PROPERTY Running : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{da255a04-44cf-482f-a945-3badb3ee4809}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="State" Id="{67a91934-fdb4-4afb-862c-94e6a5ddeabf}">
+      <Declaration><![CDATA[PROPERTY State : REFERENCE TO E_MachineCtrlState]]></Declaration>
+      <Get Name="Get" Id="{9a41f1fd-f2a4-4b19-975f-d265447822cd}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

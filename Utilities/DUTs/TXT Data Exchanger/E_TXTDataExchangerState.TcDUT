@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_TXTDataExchangerState" Id="{68a658da-c3f1-45c2-be01-d2d5741a10fc}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_TXTDataExchangerState :
+(
+	TXT_DATA_EXCHANGER_UNINITIALIZED 	:= 0,	(* Not ready to work *)
+	TXT_DATA_EXCHANGER_INITIALIZING		:= 10,	(* Preparing to work *)
+	TXT_DATA_EXCHANGER_READY 			:= 20,	(* Ready ti work, waiting for logs in buffer *)
+	TXT_DATA_EXCHANGER_IDLE 			:= 30,	(* Ready ti work, waiting for logs in buffer *)
+	TXT_DATA_EXCHANGER_ADD_LOGS			:= 40,	(* Writting logs to file *)
+	TXT_DATA_EXCHANGER_SELECT_PATH		:= 50,	(* Writting done *)
+	TXT_DATA_EXCHANGER_SEARCH_FOR_FILE	:= 60,	(* Writting done *)
+	TXT_DATA_EXCHANGER_RESET 			:= 70,	(* Reseting function block *)
+	TXT_DATA_EXCHANGER_METHOD_DONE		:= 80,	(* Reseting done *)
+	TXT_DATA_EXCHANGER_ABORTING			:= -10	(* Aborting *)
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

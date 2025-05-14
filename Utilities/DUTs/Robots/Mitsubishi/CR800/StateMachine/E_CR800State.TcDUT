@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CR800State" Id="{45b8bea3-36e7-477d-b81e-2c56cebc58c0}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_CR800State :
+(
+	CR800_UNINITIALIZED				:= 0,	(* Cr800 is uninitialized *)
+	CR800_INITIALIZING				:= 10,	(* Initialization in a progress *)
+	CR800_READY_INITIALIZED			:= 20,	(*  *)
+	CR800_IDLE_NOT_HOMED			:= 30,	(* Cr800 ready to work *)
+
+	CR800_GOING_HOME				:= 40,	(* Cr800 is going to a home position *)
+	CR800_GOING_HOME_DONE			:= 50,	(* Cr800 is in a home position *)
+	CR800_IDLE_HOMED				:= 60,	(* Cr800 is ready for requests and homed *)
+	CR800_UPDATING_RECIPIES			:= 70,	(* Cr800 is updating recipies*)
+	CR800_UPDATE_RECIPIES_DONE		:= 80,	(* Cr800 updated the repcies*)
+
+	CR800_GOING_AUTO				:= 100,	(* CR800 is going to the auto mode *)
+	CR800_GOING_AUTO_DONE			:= 110,	(* CR800 is in the auto mode *)
+	CR800_IDLE_AUTO					:= 120, (* CR800 is ready to operate in auto mode*)
+	CR800_DOING_ACTION				:= 130,	(* Do action*)
+	CR800_DOING_ACTION_DONE			:= 140,	(* Done - action *)
+
+	CR800_CYCLE_STOPPING			:= 200,	(* Cr800 program stops after the cycle is finished *)	
+	CR800_CYCLE_STOPING_DONE		:= 210,	(* Cr800 program stops after the cycle is finished done *)	
+	CR800_IDLE_AUTO_PAUSED			:= 220,	(* CR800 paused and program is off *)
+	CR800_AUTO_RESTORING			:= 230, (* CR800 is going to restore the auto mode *)
+	CR800_AUTO_RESTORING_DONE		:= 240, (* CR800 restored the auto mode *)
+	
+	CR800_CYCLE_PAUSING				:= 300,	(* Cr800 program is going to stop immediately and pause *)	
+	CR800_CYCLE_PAUSING_DONE		:= 310,	(* Cr800 program is going to stop immediately and pause done *)	
+	CR800_IDLE_CYCLE_PAUSED			:= 320,	(* CR800 program is paused *)
+	CR800_CYCLE_RESTORING			:= 330, (* CR800 is going to restore the cycle mode *)
+	CR800_CYCLE_RESTORING_DONE		:= 340, (* CR800 restored the cycle *)
+	
+	CR800_SEND_POSITION_1			:= 400,
+	CR800_SEND_POSITION_1_DONE		:= 410,
+	CR800_SEND_POSITION_2			:= 420,
+	CR800_SEND_POSITION_2_DONE		:= 430,
+	CR800_GET_POSITION				:= 440,
+	CR800_GET_POSITION_DONE			:= 450,
+	
+	CR800_RESET						:= 500,	(* Reseting the function block *)
+	CR800_RESET_DONE				:= 510,	(* Reset done *)
+	
+	CR800_IN_EXTERNAL_ERROR			:= -10,	(* FB is in an extrnal error *)
+	
+	CR800_ABORTING 					:= -20	(* Aborting *)
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

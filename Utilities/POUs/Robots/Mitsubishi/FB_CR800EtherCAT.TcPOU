@@ -1,0 +1,2970 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_CR800EtherCAT" Id="{edbfd2a9-f6c9-40c6-bfd9-bcbeab5d9169}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_CR800EtherCAT IMPLEMENTS I_CR800EtherCAT
+VAR CONSTANT
+	iMIN_ETHERCAT_REGISTER_IN_CR800	: INT 	:= 6000 ;	(*  *)
+	iMAX_ETHERCAT_REGISTER_IN_CR800	: INT 	:= 6255 ;	(*  *)
+	
+	iSEND_REQUEST_ADDRESS			: UINT 	:= 6030 ;	(*  *)
+	iRECEIVE_REQUEST_ADDRESS		: UINT 	:= 6031 ;	(*  *)
+	
+	tWATCHDOG_TIMEOUT				: TIME 	:= T#2S ;	(* Input timeout *)
+END_VAR
+VAR
+	bFirstCycle			: BOOL := TRUE;	(* First cycle procedure bit *)
+	sName				: STRING;		(*  *)
+	
+	stCR800EthercatData : ST_CR800EthercatData ;(* Data to map *)
+	
+	(* Internal commands *)
+	bIsHomed					: BOOL;			(* Robot is it's home postion *)
+	bReset						: BOOL;			(* Reset function block *)
+	
+	(* CR800 state *)
+	bInit 						: BOOL;			(* Prepare a CR800 to work *)
+	bGoHome 					: BOOL;			(* Moves a robot to the home postion *)
+	bUpdateRecipes				: BOOL;			(* CR800 is updating recpies*)
+	bGoAuto						: BOOL;			(* Robot goes to auto mode*)
+	bDoAction					: BOOL;			(* Robot is doing action in automode*)
+	bCycleStop					: BOOL;			(* Cr800 cycle is stopping *)
+	bCyclePause					: BOOL;			(* Cr800 cycle is stopping *)
+	bRestoreAuto				: BOOL;			(* CR800 is restoring auto mode *)
+	bRestoreCycle				: BOOL;			(* CR800 is restoring cycle *)
+	iActionNumber				: UINT;
+	bAbort						: BOOL;			(* Deinitialize function block *)
+	bError		 				: BOOL;			(* FB error occuring*)
+	bDontSetInitialParameters	: BOOL;			(* Don't set initial parameters in initalization *)
+	bBusy						: BOOL;
+	bActive						: BOOL;
+	bAutoModeStarted			: BOOL;
+	bUninitialized				: BOOL; 
+	bStopped					: BOOL;
+	bInitProgram				: BOOL;
+	bSendPosition1				: BOOL;
+	bSendPosition2				: BOOL;
+	bGetPosition				: BOOL;
+	
+	eErrorID 					: E_CR800Error;	(*  *)
+	
+	eCR800State					: E_CR800State					:= 0; (* Main state machine of function block *)
+	eCR800StateBeforeReset		: E_CR800State					:= 0; (* State of CR800 before reseting the error *)
+	eCR800StateHome 			: E_CR800StateHoming 			:= 0; (* State machine of homing *)
+	eCR800StateDoRequest		: E_CR800StateDoingRequest		:= 0; (* State machine of executing request*)
+	eCR800StateReceiveCommand	: E_CR800StateCommandExchange	:= 0; (* State machine of receive command data exchange *) 
+	eCR800SendCommand			: E_CR800StateCommandExchange	:= 0; (* State machine of send commad data exchange *) 
+	eCR800StateAbort 			: E_CR800StateAborting 			:= 0; (* State machine of aboriting *) 
+	eCR800StateInitializing 	: E_CR800StateInitializing 		:= 0; (* State machine of initilaizing *)
+	eCR800StateCycleStop 		: E_CR800StateCycleStopping		:= 0; (* State machine of cycle stopping *)
+	eCR800StateCyclePause		: E_CR800StateCyclePausing		:= 0; (* State machine of cycle Pausing *)
+	eCR800StateBeforeSendPosition : E_CR800State				:= 0;
+	eCR800StateSendPosition		: E_CR800StateSendPosition		:= 0; (* State machine of cycle Pausing *)
+
+	stRobot						: ST_VisuCtrlRobotFrame; 
+	
+	iOverride					: USINT;
+	lrPositionX1				: LREAL;
+	lrPositionY1				: LREAL;
+	lrRotation1					: LREAL;
+	lrPositionX2				: LREAL;
+	lrPositionY2				: LREAL;
+	lrRotation2					: LREAL;
+	
+	stUserDefinedArea			: ST_CR800UserDefinedArea;
+	
+	(* Timers *)
+	tTimeout					: TIME := tWATCHDOG_TIMEOUT;	(**)
+	tonWatchdog					: TON;							(* Input timeout watchdog *)
+
+	feTrigStopped 				: F_TRIG;
+	//rtErrorOccuring				: R_TRIG;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[M_ConvertEthercatData() ;
+
+//rtErrorOccuring(CLK := ErrorOccuring);
+IF ErrorOccuring THEN
+	//rtErrorOccuring(CLK := FALSE);
+	eCR800State := CR800_IN_EXTERNAL_ERROR ;
+	bError := TRUE ;
+	eErrorID := CR800_ERROR_CR800_ERROR_OCCURING ;
+END_IF
+
+ActionNumber := iActionNumber;
+stCR800EthercatData.arrRegistersOutput[6021] := USINT_TO_INT(iOverride);
+
+StateMachine() ;
+
+feTrigStopped(CLK := CycleStopping);
+
+IF feTrigStopped.Q THEN 
+	bStopped := TRUE;
+END_IF
+
+tonWatchdog(PT := tTimeout) ;
+
+//stCR800EthercatData.arrRegistersOutput[6021] := 100 ; {warning 'Odhardkodować - przenieść do receptury'} ]]></ST>
+    </Implementation>
+    <Folder Name="FirstCycle" Id="{98841f32-abdf-421b-b800-6a6a26115645}" />
+    <Folder Name="Internal" Id="{94e1a92a-1be1-47fd-a1b0-ea227c89b9ee}">
+      <Folder Name="Command Exchange" Id="{c2654a90-1975-4bb3-b31c-790d483f160b}" />
+    </Folder>
+    <Folder Name="Properties" Id="{8852ffcc-d3da-4c79-a831-9331581b78ef}">
+      <Folder Name="Parameters" Id="{e8858bec-3b67-4ce8-ac12-535d71268e90}" />
+      <Folder Name="Status" Id="{2039556c-3d6b-4198-b895-74f58a317f53}" />
+    </Folder>
+    <Folder Name="Requests" Id="{914600eb-da29-47db-b15a-6ffe8d8273c7}" />
+    <Folder Name="StateMachine" Id="{6a1b91e2-4bc4-45cd-8a6c-5c923c668d91}" />
+    <Property Name="ActionNumber" Id="{7a6cef37-e54c-4bb7-8f38-255a7ec01bdd}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY ActionNumber : UINT]]></Declaration>
+      <Get Name="Get" Id="{43630727-3318-4b28-9347-6403c49d8be0}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ActionNumber := iActionNumber;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{acd99861-13ab-40b9-9961-f9b9d912a6b1}">
+        <Declaration><![CDATA[
+VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF ActionNumber >= 13 AND ActionNumber <= 100 THEN
+	iActionNumber := ActionNumber;
+END_IF]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Active" Id="{67d39d6c-91a5-450c-9067-d4c5fcd67211}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Active : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{4bb6e94f-6250-4a4d-9227-6c187766d218}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Active REF= bActive;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="AutoModeStarted" Id="{3487e9a1-7e74-4d9a-a0db-b7f22b312d36}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY AutoModeStarted : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{60979d81-a83b-4222-9976-7d7ab8ca1290}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[AutoModeStarted REF= bAutoModeStarted;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="BatteryLow" Id="{78d06184-5bcc-4dfd-904c-6b76b8e0acc5}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"Outputs that the controller battery voltage is
+low. The output is turned off when the
+controller power supply is reconnected after
+the battery replacement.
+*The cumulative time where the controller
+power supply is turned off exceeds 14600
+hours.
+The output is turned off if the battery depletion
+time is reset." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC BatteryLow : BOOL ;
+
+]]></Declaration>
+      <Get Name="Get" Id="{6cb13456-e5c8-448f-a356-c26dad5b6fef}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[BatteryLow := stCR800EthercatData.arrSignalsInputConverted[6014] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="BatteryReset" Id="{f7c1a882-89ed-4c51-a207-317a8e0728a4}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+Reset the battery cumulative tine. *) 
+{attribute 'monitoring' := 'variable'}
+PROPERTY BatteryReset : BOOL]]></Declaration>
+      <Get Name="Get" Id="{1fca587c-60aa-40d6-a610-540f60255f55}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[BatteryReset := stCR800EthercatData.arrSignalsOutputConverted[6015] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{02f30157-8ac5-491f-87ea-2a695eb1856b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6015] := BatteryReset ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="BatteryResetCompleted" Id="{f3a03e18-9c2a-4c81-bf83-fcb560f33f54}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from a CR800 side:
+Output that the reset has been completed *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC BatteryResetCompleted : BOOL ;
+]]></Declaration>
+      <Get Name="Get" Id="{2d39c51e-287b-48d8-b1c0-0db6b632f682}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[BatteryResetCompleted := stCR800EthercatData.arrSignalsInputConverted[6015] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Busy" Id="{528b2e88-990c-4d75-bf1c-bda40abb3c92}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Busy : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{6d079a8d-21fd-4ad2-998e-4ebf7ce4139f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Busy REF= bBusy;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="CR800PoweredOn" Id="{a39c0b68-e9c8-4b18-b292-58faab781209}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+Outputs that the power has been turned ON
+and that the external input signal can be
+received *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC CR800PoweredOn : BOOL ;
+]]></Declaration>
+      <Get Name="Get" Id="{c0785725-3e18-47dc-8846-edfe0410147e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CR800PoweredOn := stCR800EthercatData.arrSignalsInputConverted[6000] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="CycleStop" Id="{3b83e459-7594-4815-a716-ccfb8131147a}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from a CR800 side:
+Starts the cycle stop *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY CycleStop : BOOL]]></Declaration>
+      <Get Name="Get" Id="{b3ad07b3-0558-4749-b376-95b7bcdb402e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CycleStop := stCR800EthercatData.arrSignalsOutputConverted[6013] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{43a4e752-638b-4552-ae30-55d1143e1e5e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6013] := CycleStop;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="CycleStopping" Id="{65603f40-03f6-45ca-8b87-6263fbca6526}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"Outputs that the cycle stop is operating.
+Turns OFF when the cycle stop is completed" *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC CycleStopping : BOOL ;]]></Declaration>
+      <Get Name="Get" Id="{6dbfcf92-99cb-4279-94b5-05c4ef540f4e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CycleStopping := stCR800EthercatData.arrSignalsInputConverted[6013] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="DoingAction" Id="{bb8efa7c-2757-43ca-baa2-e79baa706a30}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY DoingAction : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{2a848c16-15c9-41a9-9a26-fcbc4353cbc4}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[DoingAction REF= bDoAction;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="EmergencyStopOccuring" Id="{d3654399-f4d8-475f-816e-5ed0cd26bc38}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(*Desription from a CR800 side:
+"Outputs that an emergency stop is occurring.
+[EMGERR output conditions]
+• External emergency stop error:
+H0050, H0051 (Dual line is faulty)
+• Operation panel emergency stop error:
+H0060, H0061 (Dual line is faulty)
+• T/B emergency stop error:
+H0070, H0071 (Dual line is faulty)
+• Door switch signal faulty:
+H0039, H0040 (Dual line is faulty)
+• Wiring error of EMG connector:
+H0141"*)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC EmergencyStopOccuring : BOOL ;
+]]></Declaration>
+      <Get Name="Get" Id="{39ac0c13-8839-4375-9bad-fe0480d90a98}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[EmergencyStopOccuring := stCR800EthercatData.arrSignalsInputConverted[6016] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Error" Id="{5f690bf6-5912-4457-9403-ccc42bf9df97}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Error : REFERENCE TO BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{5a372f0d-46fd-460f-9b2a-66bf0a7166e5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Error REF= bError;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Errorname" Id="{394d1784-83c6-4aa2-96c8-0881b8133f37}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Actual FB error *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY Errorname : STRING]]></Declaration>
+      <Get Name="Get" Id="{0bcbbded-ac2b-4bd3-8c1a-e603446c8d03}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Errorname := TO_STRING(eErrorID) ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ErrorOccuring" Id="{a6601f21-26d9-4fa4-b430-15aa1cbb7d2b}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC ErrorOccuring : BOOL ;
+(*Desription from CR800 side:
+Outputs that an error has occurred.
+*)]]></Declaration>
+      <Get Name="Get" Id="{59f62cbb-95c1-4e9f-ab89-4a68d1952c44}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ErrorOccuring := stCR800EthercatData.arrSignalsInputConverted[6010] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ErrorReset" Id="{d27abe30-270a-4e46-823f-aa8ceb40e7c5}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+This input stops the program being executed.
+(The specification is the same as for the STOP
+parameter.)
+Unlike the STOP parameter, signal numbers
+can be changed. *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY ErrorReset : BOOL]]></Declaration>
+      <Get Name="Get" Id="{1c48bbca-4878-4305-9e07-b7a02003f662}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ErrorReset := stCR800EthercatData.arrSignalsOutputConverted[6010] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{dfe1c083-526e-4a12-ac2e-7052567f1c3e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6010] := ErrorReset ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="EthercatData" Id="{ab3baa5c-0119-4d94-a28e-75d18212cb42}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY EthercatData : REFERENCE TO ST_CR800EthercatData]]></Declaration>
+      <Get Name="Get" Id="{a2c73a18-ef85-40b5-b433-66111d12aea5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[EthercatData REF= stCR800EthercatData;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="InAutomaticMode" Id="{121f43e7-238e-4f7f-974d-008c52d4608a}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(*Desription from CR800 side:
+This output indicates that the controller mode
+is set to AUTOMATIC.*)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC InAutomaticMode : BOOL ;]]></Declaration>
+      <Get Name="Get" Id="{ab00d947-16a6-43cc-a725-f62c6fabd94d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[InAutomaticMode := stCR800EthercatData.arrSignalsInputConverted[6003] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="InRemoteMode" Id="{8d28b9b5-5f4e-4c3d-8c24-fe5806b14897}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+This output indicates that the controller mode
+is set to AUTOMATIC and remote operation
+mode.*)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC InRemoteMode : BOOL ;]]></Declaration>
+      <Get Name="Get" Id="{c6a0b948-c57a-47dc-b1a6-3db1996dd94a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[InRemoteMode := stCR800EthercatData.arrSignalsInputConverted[6001] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="InTeachingMode" Id="{5aa60c81-cef9-465d-94be-12816dc9123a}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(*Desription from CR800 side:
+This output indicates that the controller mode
+is set to Teaching mode. *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC InTeachingMode : BOOL ;]]></Declaration>
+      <Get Name="Get" Id="{e1ffdb5f-9f37-4514-a9f6-1ac6ab55c063}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[InTeachingMode := stCR800EthercatData.arrSignalsInputConverted[6002] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="IsHomed" Id="{2c49b789-9b04-40b5-8ceb-40e33c8365fb}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY IsHomed : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{c6a1daec-5fdf-4b04-b75c-6fbb71b93411}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsHomed REF= bIsHomed;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="M_ConvertEthercatData" Id="{3c37668c-5137-4933-b6d3-e79eca8af061}" FolderPath="Internal\">
+      <Declaration><![CDATA[(*This mehtod converts raw data from memory and converts its number for the same like in the mitshubishi manual
+  F:\Dept\SMT\Electronics\Mitsubishi\Manuals\Karta ethercat*)
+METHOD Protected M_ConvertEthercatData : BOOL
+VAR
+	iLoop	: INT;	
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR iLoop := 0 TO 31 DO  
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800  +iLoop*8]	:= 	stCR800EthercatData.arrSignalsInputRaw[iLoop].0	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+1+iLoop*8]	:= 	stCR800EthercatData.arrSignalsInputRaw[iLoop].1	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+2+iLoop*8] := 	stCR800EthercatData.arrSignalsInputRaw[iLoop].2	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+3+iLoop*8] := 	stCR800EthercatData.arrSignalsInputRaw[iLoop].3	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+4+iLoop*8] := 	stCR800EthercatData.arrSignalsInputRaw[iLoop].4	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+5+iLoop*8] := 	stCR800EthercatData.arrSignalsInputRaw[iLoop].5	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+6+iLoop*8] := 	stCR800EthercatData.arrSignalsInputRaw[iLoop].6	;
+	stCR800EthercatData.arrSignalsInputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+7+iLoop*8] := 	stCR800EthercatData.arrSignalsInputRaw[iLoop].7	;
+	
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].0	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800  +iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].1	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+1+iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].2	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+2+iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].3	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+3+iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].4	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+4+iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].5	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+5+iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].6	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+6+iLoop*8];
+	stCR800EthercatData.arrSignalsOutputRaw[iLoop].7	:=	stCR800EthercatData.arrSignalsOutputConverted[iMIN_ETHERCAT_REGISTER_IN_CR800+7+iLoop*8];
+END_FOR
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_DoRequest" Id="{e42ebc39-7c0c-41ce-8e5d-64b371c57d77}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* 1 - Request executed, 0 - request not executed 
+	Description:
+		This method doing request robot to do request with given number in iNumberOfRequest *)
+
+METHOD PROTECTED M_DoRequest : BOOL
+VAR_INPUT
+	iNumberOfRequest	: 	UINT	;	(* Destination memory place in the robot*)
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateDoRequest OF
+
+	CR800_DOING_REQUEST_IDLE:
+		M_DoRequest			:= FALSE ;
+		eCR800StateDoRequest		:= CR800_DOING_REQUEST_SEND_REQUEST;
+		
+	CR800_DOING_REQUEST_SEND_REQUEST:
+		IF M_SendCommand(iDestinationAdress := iSEND_REQUEST_ADDRESS, iRequestNumber := iNumberOfRequest) THEN
+			eCR800StateDoRequest	:= CR800_DOING_REQUEST_WAIT_FOR_CONFIRM;
+		END_IF
+		
+	CR800_DOING_REQUEST_WAIT_FOR_CONFIRM:
+		IF M_ReceiveCommand(iDestinationAdress := iRECEIVE_REQUEST_ADDRESS) THEN
+			eCR800StateDoRequest 	:= CR800_DOING_REQUEST_DONE ;
+		END_IF
+	
+	CR800_DOING_REQUEST_DONE:
+		M_DoRequest			:= TRUE ;
+		eCR800StateDoRequest 		:= CR800_DOING_REQUEST_IDLE ;
+END_CASE
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_OperationRigtsEnable" Id="{8fff37a8-6a9d-45b9-9e00-dd29a24a838f}" FolderPath="Internal\">
+      <Declaration><![CDATA[(*1 - Operation rights granted, 0 - Operation rights not granted
+	Description: 
+		This method grants operation rights to the PLC in CR800
+		IE. PLC is only controlling the robot.
+		Warning: The operation rights is lost, when teaching box is in the "Operation panel" screen.
+		Input bRequest: 1 - Enable, 0 - unable *) 
+
+METHOD PROTECTED M_OperationRigtsEnable : BOOL 
+VAR_INPUT
+	bRequest : BOOL ; (*1 - Enable, 0 - unable *) 
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF bRequest THEN 
+	OperationRightsEnable := TRUE ;
+	tonWatchdog.IN := TRUE ;
+	IF OperationRightsEnabled THEN
+		tonWatchdog.IN := FALSE ;
+		M_OperationRigtsEnable := TRUE ;
+	//ELSIF tonWatchdog.Q THEN
+	//	bError 		:= TRUE ;
+	//	eErrorID	:= CR800_ERROR_GRANTING_OPERATION_RIGHTS_TIMED_OUT ;			
+	END_IF
+END_IF
+
+IF NOT bRequest THEN 
+	OperationRightsEnable := FALSE ;
+	tonWatchdog.IN := TRUE ;
+	IF NOT OperationRightsEnabled THEN
+		tonWatchdog.IN := FALSE ;
+		M_OperationRigtsEnable := FALSE ;
+	ELSIF tonWatchdog.Q THEN
+		bError 		:= TRUE ;
+		eErrorID	:= CR800_ERROR_ABORTING_OPERATION_RIGHTS_TIMED_OUT ;			
+	END_IF
+END_IF
+	
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ProgramReset" Id="{a8a1531f-c338-49f8-b641-f34f165d3198}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* 1 - Program is reseted, 0 - program is not reseted
+	Description:
+		This method reset the program in Cr800
+		IE. The next program start will begin form the first line*)
+METHOD PROTECTED M_ProgramReset : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ProgramOperating THEN
+	bError 		:= TRUE ;
+	eErrorID	:= CR800_ERROR_CANT_RESET_PRG_DURING_PRG_RUN ;
+ELSE
+	ProgramReset 	:= TRUE	;
+	tonWatchdog.IN 	:= TRUE ;
+	IF ProgramSelectionEnabled THEN
+		ProgramReset 	:= FALSE;
+		tonWatchdog.IN 	:= FALSE;	
+		M_ProgramReset := TRUE ;
+	ELSIF tonWatchdog.Q THEN
+		bError 			:= TRUE ;
+		eErrorID		:= CR800_ERROR_RESET_PRG_TIMED_OUT ;			
+	END_IF
+END_IF
+
+	
+	
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ProgramStart" Id="{6236a451-7d55-4a0e-a468-9ca95989028c}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* 0 - program not started, 1 - Program started 
+	Description:
+		This method starts the program in CR800 *) 
+METHOD protected M_ProgramStart : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF tonWatchdog.Q THEN
+	bError 			:= TRUE ;
+	eErrorID		:= CR800_ERROR_START_PRG_TIMED_OUT ;	
+ELSIF NOT ProgramOperating OR StopSTS THEN
+	ProgramStart 	:= TRUE	;
+	M_ProgramStart := FALSE;
+	tonWatchdog.IN 	:= TRUE ;
+ELSIF ProgramOperating THEN
+	ProgramStart 	:= FALSE;
+	M_ProgramStart := TRUE ;
+	tonWatchdog.IN 	:= FALSE;		
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ProgramStop" Id="{bbac4d01-631b-4973-a8cf-76d28df21468}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* 1 - program stopped, 0 - program has not stopped
+	Description:
+		This method stops (pause) the program in CR800.
+		IE. Stops the program implicitly *)
+METHOD PROTECTED  M_ProgramStop : BOOL
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ProgramStop  := FALSE ;
+ProgramStop2 	:= TRUE ;
+
+IF StopSTS AND NOT ProgramOperating THEN
+	ProgramStop2	:= FALSE ;
+	M_ProgramStop  := TRUE ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReceiveCommand" Id="{9d528d59-f9f9-478d-9ec2-5262d00b9575}" FolderPath="Internal\Command Exchange\">
+      <Declaration><![CDATA[(* 0 - command not Received, 1 - command Received 
+	Desription:
+		This method waits for the information from the iDestinationAddress, send confirmation,
+ 		waits for reset command and then resets confirmation *)
+{attribute 'monitoring' := 'variable'}
+METHOD PROTECTED M_ReceiveCommand : BOOL 
+VAR_INPUT
+	iDestinationAdress	: 	UINT	;	(* Destination memory place in the robot*)
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//IF tonWatchdog.Q THEN
+//	bError 		:= TRUE ;
+//	eErrorID	:= CR800_ERROR_RECEIVE_COMMAND_TIMED_OUT ;			
+//END_IF
+
+CASE eCR800StateReceiveCommand OF
+	
+	CR800_CMD_EXCHANGE_IDLE:
+		M_ReceiveCommand := FALSE ;
+//		tonWatchdog.IN 	:= TRUE ;
+		eCR800StateReceiveCommand 	:= CR800_CMD_EXCHANGE_WAIT_FOR_DATA ;
+
+	CR800_CMD_EXCHANGE_WAIT_FOR_DATA:
+		IF stCR800EthercatData.arrSignalsInputConverted[iDestinationAdress] THEN
+			eCR800StateReceiveCommand := CR800_CMD_EXCHANGE_SEND_CONFIRMATION ;			
+		END_IF
+
+	CR800_CMD_EXCHANGE_SEND_CONFIRMATION:
+		stCR800EthercatData.arrSignalsOutputConverted[iDestinationAdress] := TRUE ;
+		eCR800StateReceiveCommand 	:= CR800_CMD_EXCHANGE_WAIT_FOR_RESET_COMMAND ;
+		
+	CR800_CMD_EXCHANGE_WAIT_FOR_RESET_COMMAND:
+		IF NOT stCR800EthercatData.arrSignalsInputConverted[iDestinationAdress] THEN
+			eCR800StateReceiveCommand := CR800_CMD_EXCHANGE_RESET_ITERLOCKS ;			
+		END_IF
+			
+	CR800_CMD_EXCHANGE_RESET_ITERLOCKS:
+		stCR800EthercatData.arrSignalsOutputConverted[iDestinationAdress] := FALSE;
+		eCR800StateReceiveCommand	:= CR800_CMD_EXCHANGE_DONE ;
+
+	CR800_CMD_EXCHANGE_DONE:
+//		tonWatchdog.IN 					:= FALSE;	
+		M_ReceiveCommand 				:= TRUE ;		
+		eCR800StateReceiveCommand	:= CR800_CMD_EXCHANGE_IDLE ;
+
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ResetVariables" Id="{4753dea7-c7ee-4542-8e69-6582ed1b7b90}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* Desription:
+	This method resets fb variables *)
+METHOD PROTECTED M_ResetVariables : BOOL
+VAR
+	iLoop: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//M_OperationRigtsEnable(bRequest 	:= 0);
+eCR800StateDoRequest				:= 0 ;
+eCR800StateHome 					:= 0 ;	
+eCR800StateReceiveCommand			:= 0 ;
+eCR800SendCommand					:= 0 ;
+eCR800StateInitializing 			:= 0 ;
+eCR800StateCycleStop 				:= 0 ; 
+eCR800StateCyclePause				:= 0 ; 
+eCR800StateSendPosition				:= 0 ;
+
+eErrorID := CR800_ERROR_OK;
+
+bGoHome 			:=	FALSE;
+bUpdateRecipes		:=	FALSE;
+bGoAuto				:=	FALSE;
+bDoAction			:=	FALSE;
+bCycleStop			:=	FALSE;
+bCyclePause			:= 	FALSE;
+bRestoreCycle		:=  FALSE;
+bIsHomed			:=	FALSE;
+bAutoModeStarted 	:=  FALSE;
+tonWatchdog.IN 		:=  FALSE;
+
+FOR iLoop := iMIN_ETHERCAT_REGISTER_IN_CR800 TO iMAX_ETHERCAT_REGISTER_IN_CR800 DO
+	stCR800EthercatData.arrRegistersOutput[iLoop] 			:= 0 ;
+	stCR800EthercatData.arrSignalsOutputConverted[iLoop]	:= 0 ;
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_SendCommand" Id="{469f489d-51ac-4d3a-8e64-b45645debb9a}" FolderPath="Internal\Command Exchange\">
+      <Declaration><![CDATA[(* 0 - command not sent, 1 - command sent 
+	Descritpion:
+		This method sends the information to the iDestinationAddress, waits for a confirmation,
+ 		send reset command and then resets send request *)
+{attribute 'monitoring' := 'variable'}
+METHOD PROTECTED M_SendCommand : BOOL
+
+VAR_INPUT
+	iDestinationAdress		: 	UINT	;	(* Destination memory place in the robot*)
+	iRequestNumber			:  	UINT	;	(* Reqest number that robot has to perform *)		
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF tonWatchdog.Q THEN
+	bError 		:= TRUE ;
+	eErrorID	:= CR800_ERROR_SEND_COMMAND_TIMED_OUT ;			
+END_IF
+
+
+CASE eCR800SendCommand OF
+	
+	CR800_CMD_EXCHANGE_IDLE:
+		M_SendCommand 	:= FALSE ;
+		RequestNumber 	:= iRequestNumber ; 
+		tonWatchdog.IN 	:= TRUE ;
+		eCR800SendCommand 	:= CR800_CMD_EXCHANGE_SEND_DATA ;
+
+	CR800_CMD_EXCHANGE_SEND_DATA:
+		stCR800EthercatData.arrSignalsOutputConverted[iDestinationAdress] := TRUE ;
+		eCR800SendCommand 	:= CR800_CMD_EXCHANGE_WAIT_FOR_CONFIRMATION ;
+		
+	CR800_CMD_EXCHANGE_WAIT_FOR_CONFIRMATION:
+		IF stCR800EthercatData.arrSignalsInputConverted[iDestinationAdress] THEN
+			eCR800SendCommand := CR800_CMD_EXCHANGE_RESET_ITERLOCKS ;			
+		END_IF
+	
+	CR800_CMD_EXCHANGE_RESET_ITERLOCKS:
+		stCR800EthercatData.arrSignalsOutputConverted[iDestinationAdress] := FALSE;
+		eCR800SendCommand	:= CR800_CMD_EXCHANGE_WAIT_FOR_RESET_CONFIRMATION ;
+	
+	CR800_CMD_EXCHANGE_WAIT_FOR_RESET_CONFIRMATION:
+		IF NOT stCR800EthercatData.arrSignalsInputConverted[iDestinationAdress] THEN
+			eCR800SendCommand := CR800_CMD_EXCHANGE_DONE ;			
+		END_IF
+		
+	CR800_CMD_EXCHANGE_DONE:
+		tonWatchdog.IN 				:= FALSE;
+		M_SendCommand 				:= TRUE ;
+		eCR800SendCommand 	:= CR800_CMD_EXCHANGE_IDLE ;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ServoOff" Id="{0b600418-9c1e-4084-ba63-778228c23813}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* Servo Off request. 1 - Servo offed succesfully, 0 - Servo has not stopped yet
+	Description:
+		This method turns off the servos of the robot *)
+METHOD PROTECTED M_ServoOff : BOOL
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ServoOFF := TRUE ;
+
+IF ServoIsOff THEN
+	ServoOFF 	:= FALSE ;
+	M_ServoOFF := TRUE ;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ServoOn" Id="{a80d496d-5611-483d-a500-14609708fa1e}" FolderPath="Internal\">
+      <Declaration><![CDATA[(* 1 - Servo on succesfully, 0 - Servo has not stopped yet
+	Description:
+		This method turns on the servos of the robot *)
+METHOD PROTECTED M_ServoOn : BOOL (*Servo ON request*)
+
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT ServoOFF THEN
+
+	ServoON 		:= TRUE ;
+	tonWatchdog.IN 	:= TRUE ;
+	IF ServoIsOn THEN
+		ServoON 		:= FALSE ;
+		M_ServoON 		:= TRUE	 ;
+		tonWatchdog.IN 	:= FALSE ;
+	ELSIF tonWatchdog.Q THEN
+		bError 		:= TRUE ;
+		eErrorID	:= CR800_ERROR_SERVO_ON_TIMED_OUT ;			
+	END_IF
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="MainStateMachine" Id="{28a0f320-44dd-4a23-8d2f-8246558fd7a6}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Actual state of main state machine *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY MainStateMachine : STRING]]></Declaration>
+      <Get Name="Get" Id="{6ca4a877-8607-4596-83be-59dba24b0e3b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MainStateMachine := TO_STRING(eCR800State) ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="MR_Abort" Id="{7f20a221-4e35-4b12-8a90-aee4512db65f}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - abroting finished, 0 - aborting not finished.
+	Description:
+		This method aborts all actions, stops and reset the program and turn off the robot*)
+METHOD  MR_Abort : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State <> CR800_UNINITIALIZED OR ServoIsOn THEN
+	bBusy 	:= TRUE;
+	bAbort := TRUE;
+	MR_Abort := FALSE;
+	eCR800State := CR800_ABORTING;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : abort requested'));	
+	
+ELSIF eCR800State = CR800_UNINITIALIZED THEN
+	bAbort := FALSE;
+	MR_Abort := TRUE;
+//	bActive := FALSE; 
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : abort done'));	
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_BatteryReset" Id="{38019ff5-1560-402e-af2e-ffbf82360d8d}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - During reseting, 0 - Reset completed
+	Description:
+		Reset the batetery replacement timer request.
+		Indirectly resets the battery error. *) 
+METHOD MR_BatteryReset : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT BatteryResetCompleted THEN
+	bBusy 	:= TRUE;
+	MR_BatteryReset := TRUE;
+	BatteryReset :=	TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : battery reset requested'));
+	
+ELSE 
+	MR_BatteryReset := FALSE;
+	BatteryReset :=	FALSE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : battery reset done'));
+	
+END_IF
+
+
+
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_CyclePause" Id="{5c7fdb12-3735-4a7a-92d9-bd988c87f385}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Cycle paused, 0 - Cycle not paused
+	Description:
+		This method stop the program without reseting.
+		IE. stops movement implicily 
+		To restore the movement use MR_RestoreCycle or MR_GoHome *)
+METHOD MR_CyclePause : BOOL 
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_DOING_ACTION THEN
+	bBusy 	:= TRUE;
+	bCyclePause := TRUE;
+	MR_CyclePause := FALSE;
+	eCR800State := E_CR800State.CR800_CYCLE_PAUSING;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : cycle pausing requested'));
+	
+ELSIF eCR800State = E_CR800State.CR800_CYCLE_PAUSING_DONE THEN
+	bCyclePause	:= FALSE;
+	MR_CyclePause := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : cycle pausing done'));
+	
+END_IF
+
+
+
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_CycleStop" Id="{5410f977-c13a-46ea-b65a-c771d6e522ac}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - During stopping, 0 - Cycle stop completed
+	Description:
+		This method stop the program, when the "End" command is met in the robots program.
+		Caution: It stops the program AND reset it. To restore it you need to use MR_RestoreAuto. *) 
+
+METHOD MR_CycleStop : BOOL  ]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_DOING_ACTION OR eCR800State = CR800_IDLE_CYCLE_PAUSED OR eCR800State = CR800_IDLE_AUTO_PAUSED THEN
+	bBusy 	:= TRUE;
+	bCycleStop 	:= TRUE;
+	MR_CycleStop := FALSE;
+	eCR800State := CR800_CYCLE_STOPPING;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : cycle stopping requested'));
+	
+ELSIF eCR800State = CR800_CYCLE_STOPING_DONE THEN
+	bDoAction := FALSE;
+	bCycleStop := FALSE;
+	MR_CycleStop := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : cycle stopping done'));
+	
+END_IF
+
+
+
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_DoAction" Id="{5e527b63-8865-4684-a7cc-0b7329b77d30}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 0 - Action not completed, 1 - Action completed
+Description:
+This method send request to do an action.
+Robot will perform an action number that is called in input.
+If the action is single and has and end use:
+	IF MR_DoAction( iActionNumber := iExampleNumber) THEN
+		bDO_A_FLIP := true ;
+	END_IF
+If the action is endless then just call it, and then use MR_CycleStop.
+	MR_DoAction( iActionNumber := iExampleNumber) *)
+METHOD MR_DoAction : BOOL
+VAR_INPUT
+	iActionNumber : UINT ;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_IDLE_AUTO THEN
+	IF iActionNumber <= 12 THEN 
+		bError := TRUE ;
+		eErrorID := CR800_ERROR_CANT_DO_SYSTEM_ACTION_IN_THIS_REQUEST ;
+	ELSE
+		bBusy 	:= TRUE;
+		bDoAction := TRUE;
+		bStopped := FALSE;
+		MR_DoAction := FALSE;
+		iActionNumber := iActionNumber;
+		eCR800State := CR800_DOING_ACTION;
+		fbMachineLogger.MR_AddLogs(FUN_MergeStrings5(sName,' : doing action number: ',UINT_TO_STRING(iActionNumber), '',' requested'));
+	
+	END_IF
+	
+ELSIF eCR800State = CR800_DOING_ACTION_DONE THEN
+	bIsHomed := FALSE;
+	bAutoModeStarted := FALSE;
+	MR_DoAction := TRUE;
+	bBusy := FALSE; 
+	fbMachineLogger.MR_AddLogs(FUN_MergeStrings5(sName,' : doing action number: ',UINT_TO_STRING(iActionNumber),'',' done'));
+	
+ELSIF eCR800State <> CR800_DOING_ACTION AND eCR800State = E_CR800State.CR800_IDLE_CYCLE_PAUSED 
+	AND eCR800State <> E_CR800State.CR800_CYCLE_PAUSING AND eCR800State <> E_CR800State.CR800_CYCLE_PAUSING
+	AND eCR800State <> CR800_CYCLE_RESTORING AND eCR800State <> CR800_CYCLE_RESTORING_DONE THEN
+	bError := TRUE ;
+	eErrorID := CR800_ERROR_CANT_DO_ACTION_WITHOUT_BEEING_AUTO ;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : ERROR_CANT_DO_ACTION_WITHOUT_BEEING_AUTO'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_FirstCycle" Id="{cf6d8aa2-4737-4773-81dc-a7b5badce938}" FolderPath="FirstCycle\">
+      <Declaration><![CDATA[METHOD MR_FirstCycle : BOOL
+VAR_INPUT
+	sName 				: STRING;
+	iOverride			: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.sName := sName;
+THIS^.iOverride := iOverride;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_GoAuto" Id="{f8f16e91-34ce-4308-8e6c-a390fe1c89fe}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 0 - FB is NOT in auto mode, 1 - FB is in auto mode
+	Description:
+		This method reqest FB to go into the auto mode. In automode FB can perform actions (MR_DoAction) *)
+METHOD MR_GoAuto : BOOL 
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bIsHomed THEN 
+	bError := TRUE ;
+	eErrorID := CR800_ERROR_CANT_GO_AUTO_WITHOUT_BEEING_HOMED ;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : ERROR_CANT_GO_AUTO_WITHOUT_BEEING_HOMED'));
+	
+ELSIF eCR800State = CR800_IDLE_HOMED OR eCR800State = CR800_CYCLE_PAUSING_IDLE THEN
+	bBusy 	:= TRUE;
+	bGoAuto := TRUE;
+	MR_GoAuto := FALSE;
+	iActionNumber := stRobot.iActionNumber;
+	eCR800State := CR800_GOING_AUTO;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : going auto requested'));
+	
+ELSIF eCR800State = CR800_GOING_AUTO_DONE THEN
+	bStopped := FALSE;
+	bGoAuto := FALSE;
+	MR_GoAuto := TRUE;
+	bAutoModeStarted := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : going auto done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_GoHome" Id="{0b271c87-d358-4103-abbb-6ac6de873658}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Homing finished, 0 - Homing not finished.
+	Description:
+	This method request the robot to go home *)
+METHOD MR_GoHome : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_IDLE_NOT_HOMED OR eCR800State = CR800_IDLE_AUTO OR eCR800State = CR800_IDLE_AUTO_PAUSED THEN
+	bBusy 	:= TRUE;	
+	bGoHome := TRUE;
+	MR_GoHome := FALSE;
+	eCR800State := CR800_GOING_HOME;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : going home requested'));
+	
+ELSIF eCR800State = CR800_GOING_HOME_DONE THEN
+	bIsHomed := TRUE;
+	bGoHome := FALSE;
+	MR_GoHome := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : going home done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Init" Id="{dd20636a-0c18-4ebd-953c-682c0e218ab1}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Initializing finished, 0 - Initializing not finished.
+	Description:
+		This method initialize the robot:
+			1. Checks for ethercat connection
+			2. Checks for power of the CR800
+			3. Checks for emergency stop
+			4. Checks is CR800 is in auto mode
+			5. Enable rights
+			6. Turn on servos
+			7. Resets the program
+			8. Starts the program
+			9. Sets initial parameters in the robot (when initializing after error this step is ommited) *)
+METHOD MR_Init : BOOL ]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_UNINITIALIZED AND NOT bAbort AND NOT bReset THEN
+	bBusy 	:= TRUE;
+	bInit := TRUE;
+	MR_Init := FALSE;
+	eCR800State := CR800_INITIALIZING;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : initialization requested'));
+	
+ELSIF eCR800State = CR800_READY_INITIALIZED THEN
+	bUninitialized := FALSE;
+	bActive := TRUE;
+	bInit := FALSE;
+	MR_Init := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : initialization done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_Reset" Id="{c0508475-ce5d-495b-9602-6f4d2e51c7df}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Reset finished, 0 - Reset not finished.
+	Description:
+		This method resets the error state of the FB *)
+METHOD MR_Reset : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State < CR800_RESET AND bError THEN
+	bBusy 	:= TRUE;
+	bReset := TRUE;
+	eCR800StateBeforeReset := eCR800State;
+	MR_Reset := FALSE;
+	eCR800State := CR800_RESET;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : reset requested'));
+	
+ELSIF eCR800State = CR800_RESET_DONE THEN
+	bReset := FALSE;
+	MR_Reset := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : reset done'));
+		
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_ResetCR800Err" Id="{b0fc6221-1a18-4cc8-b35f-afb139fd2fc7}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Reset finished, 0 - Reset not finished.
+	Description:
+		This method resets the internal error of CR800 *)
+METHOD MR_ResetCR800Err : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ErrorOccuring  THEN
+	bBusy 	:= TRUE;
+	MR_ResetCR800Err := FALSE;
+	ErrorReset := TRUE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : controller reset requested'));
+	
+ELSE 
+	ErrorReset := FALSE;
+	MR_ResetCR800Err := TRUE;	
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : controller reset done'));
+	
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_RestoreAuto" Id="{076a36e8-af2d-4bd3-b619-20090a22ff7e}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Auto mode restored, 0 - Auto mode NOT restored.
+	Description:
+		This method restores auto mode after the MR_CycleStop method *)
+METHOD MR_RestoreAuto : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_IDLE_AUTO_PAUSED THEN
+	bBusy 	:= TRUE;
+	bRestoreAuto := TRUE;
+	bInitProgram := TRUE;
+	MR_RestoreAuto := FALSE;
+	eCR800State := CR800_AUTO_RESTORING;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : restoring auto mode requested'));
+	
+ELSIF eCR800State = CR800_AUTO_RESTORING_DONE THEN
+	bStopped := FALSE;
+	bRestoreAuto := FALSE;
+	bInitProgram := FALSE;
+	MR_RestoreAuto := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : restoring auto mode done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_RestoreCycle" Id="{ebdd9c9d-1225-41ec-9274-bd59102dd887}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Cycle restored, 0 - Cycle NOT restored.
+	Description:
+		This method restores cycle after the MR_CyclePause method *)
+METHOD MR_RestoreCycle : BOOL
+
+VAR
+	FA: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_IDLE_CYCLE_PAUSED THEN
+	bBusy 	:= TRUE;
+	bRestoreCycle := TRUE;
+	MR_RestoreCycle	:= FALSE;
+	eCR800State := CR800_CYCLE_RESTORING;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : restoring cycle requested'));
+		
+ELSIF eCR800State = CR800_CYCLE_RESTORING_DONE THEN	
+	bRestoreCycle := FALSE;
+	MR_RestoreCycle := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : restoring cycle done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_SendPosition1" Id="{d991c889-4dc8-407f-b704-cad29d8209b0}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_SendPosition1 : BOOL 
+VAR_INPUT
+	lrPositionX1	: LREAL;
+	lrPositionY1	: LREAL;
+	lrRotation1		: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_DOING_ACTION OR eCR800State = CR800_IDLE_AUTO_PAUSED OR eCR800State = CR800_IDLE_AUTO OR eCR800State = CR800_IDLE_HOMED OR eCR800State = CR800_IDLE_NOT_HOMED THEN
+	bBusy 	:= TRUE;
+	bSendPosition1 := TRUE;
+	MR_SendPosition1 := FALSE;
+	eCR800StateBeforeSendPosition := eCR800State;
+	eCR800State := CR800_SEND_POSITION_1;
+	eCR800StateSendPosition := CR800_SEND_POSITION_CONVERTING;
+	THIS^.lrPositionX1 := lrPositionX1;
+	THIS^.lrPositionY1 := lrPositionY1;
+	THIS^.lrRotation1 := lrRotation1;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : sending first position requested'));
+	
+ELSIF eCR800State = CR800_SEND_POSITION_1_DONE THEN
+	bSendPosition1	:= FALSE;
+	MR_SendPosition1 := TRUE;
+	//bBusy := FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : sending first position done'));
+	
+END_IF
+
+
+
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_SendPosition2" Id="{f231f916-2ff6-43de-8e73-2b332a119c47}" FolderPath="Requests\">
+      <Declaration><![CDATA[METHOD MR_SendPosition2 : BOOL 
+VAR_INPUT
+	lrPositionX2	: LREAL;
+	lrPositionY2	: LREAL;
+	lrRotation2		: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_DOING_ACTION OR eCR800State = CR800_IDLE_AUTO_PAUSED OR eCR800State = CR800_IDLE_AUTO OR eCR800State = CR800_IDLE_HOMED OR eCR800State = CR800_IDLE_NOT_HOMED THEN
+	bBusy 	:= TRUE;
+	bSendPosition2 := TRUE;
+	MR_SendPosition2 := FALSE;
+	eCR800StateBeforeSendPosition := eCR800State;
+	eCR800State := CR800_SEND_POSITION_2;
+	eCR800StateSendPosition := CR800_SEND_POSITION_CONVERTING;
+	THIS^.lrPositionX2 := lrPositionX2;
+	THIS^.lrPositionY2 := lrPositionY2;
+	THIS^.lrRotation2 := lrRotation2;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : sending second position requested'));
+	
+ELSIF eCR800State = CR800_SEND_POSITION_2_DONE THEN
+	bSendPosition2	:= FALSE;
+	MR_SendPosition2 := TRUE;
+	//bBusy := FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : sending second position done'));
+	
+END_IF
+
+
+
+ ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MR_UpdateRecipies" Id="{fd65cbe3-12c2-4117-bbd5-ecf5e9b7e5f2}" FolderPath="Requests\">
+      <Declaration><![CDATA[(* 1 - Recipies updated, 0 - Recipies not updated.
+	Description:
+		This method updated the recipies, while robot is homed *)
+METHOD MR_UpdateRecipies : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF eCR800State = CR800_IDLE_HOMED THEN
+	bBusy 	:= TRUE;
+	bUpdateRecipes := TRUE;
+	MR_UpdateRecipies := FALSE;
+	eCR800State := CR800_UPDATING_RECIPIES;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : updating recipes requested'));
+	
+ELSIF eCR800State = CR800_UPDATE_RECIPIES_DONE THEN
+	bUpdateRecipes := FALSE;
+	MR_UpdateRecipies := TRUE;
+	bBusy 	:= FALSE;
+	fbMachineLogger.MR_AddLogs(CONCAT(sName,' : updating recipes done'));
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Aborting" Id="{3e260522-7fc3-4573-857b-3a26ef6e0e1c}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED  MS_Aborting
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateAbort OF
+	
+	CR800_ABORTING_IDLE:
+		eCR800StateAbort := CR800_ABORTING_ENABLE_RIGHTS;
+	
+	CR800_ABORTING_ENABLE_RIGHTS:
+		IF M_OperationRigtsEnable(bRequest := TRUE) THEN
+			eCR800StateAbort := CR800_ABORTING_PRGM_STOP;
+		END_IF
+	
+	CR800_ABORTING_PRGM_STOP: 
+		IF M_ProgramStop() THEN
+			eCR800StateAbort := CR800_ABORTING_PRGM_RESET ;
+		END_IF
+	
+	CR800_ABORTING_PRGM_RESET: 
+		IF M_ProgramReset() THEN
+			IF NOT bInitProgram THEN
+				eCR800StateAbort := CR800_ABORTING_SERVO_OFF ;
+			ELSE 
+				eCR800StateAbort := CR800_ABORTING_DONE ;
+			END_IF
+		END_IF
+		
+	CR800_ABORTING_SERVO_OFF: 
+		IF M_ServoOFF() THEN
+			eCR800StateAbort := CR800_ABORTING_DONE ;
+		END_IF
+	 
+	CR800_ABORTING_DONE:
+	
+		M_OperationRigtsEnable(bRequest 	:= 0);
+		eCR800StateDoRequest				:= 0 ;
+		eCR800StateHome 					:= 0 ;	
+		eCR800StateReceiveCommand			:= 0 ;
+		eCR800SendCommand					:= 0 ;
+		eCR800StateInitializing 			:= 0 ;
+		eCR800StateCycleStop 				:= 0 ; 
+		eCR800StateCyclePause				:= 0 ; 
+		bGoHome 			:=	FALSE;
+		bUpdateRecipes		:=	FALSE;
+		bGoAuto				:=	FALSE;
+		bDoAction			:=	FALSE;
+		bCycleStop			:=	FALSE;
+		bCyclePause			:= 	FALSE;
+		bRestoreCycle		:=  FALSE;
+		bIsHomed			:=	FALSE;
+		bAutoModeStarted 	:=  FALSE;
+		tonWatchdog.IN 		:=  FALSE;
+		bInit				:= 	FALSE;
+		
+		IF NOT bInitProgram THEN
+			eCR800State := CR800_UNINITIALIZED;
+		ELSE 
+			eCR800State := CR800_INITIALIZING;
+		END_IF	
+			
+		eCR800StateAbort := CR800_ABORTING_IDLE ;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_CyclePauseDone" Id="{0b595012-6851-4305-a0f4-31d5fc858554}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_CyclePauseDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bCyclePause THEN
+	eCR800State := CR800_IDLE_CYCLE_PAUSED ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_CyclePausing" Id="{0e4e51cf-a8d9-4529-bcb8-874db815bbe1}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_CyclePausing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateCyclePause OF
+	CR800_CYCLE_PAUSING_IDLE:
+		eCR800StateCyclePause := E_CR800StateCyclePausing.CR800_CYCLE_PAUSING;
+		
+	E_CR800StateCyclePausing.CR800_CYCLE_PAUSING:
+		IF M_ProgramStop() THEN
+			eCR800StateCyclePause := E_CR800StateCyclePausing.CR800_CYCLE_PAUSING_DONE;
+		END_IF
+		
+	E_CR800StateCyclePausing.CR800_CYCLE_PAUSING_DONE:
+		eCR800State := E_CR800State.CR800_CYCLE_PAUSING_DONE;
+		eCR800StateCyclePause := CR800_CYCLE_PAUSING_IDLE;
+END_CASE
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_CycleStopDone" Id="{c3a83ae3-4f57-48a6-b028-a9f271b713a4}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_CycleStopDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bCycleStop THEN
+	eCR800State := CR800_IDLE_AUTO_PAUSED ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_CycleStopping" Id="{8ee5a156-adf6-4d7d-b9c2-1c83279141b2}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_CycleStopping
+VAR_INST
+	tonWait : TON := (pt := T#1S) ;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateCycleStop OF
+	CR800_CYCLE_STOPPPING_IDLE:
+		eCR800StateCycleStop := CR800_CYCLE_STOPPPING_SEND_REQUEST;
+		
+	CR800_CYCLE_STOPPPING_SEND_REQUEST:
+		CycleStop := TRUE ;
+		eCR800StateCycleStop := CR800_CYCLE_STOPPPING_WAIT_FOR_STOP;
+
+	CR800_CYCLE_STOPPPING_WAIT_FOR_STOP:
+		tonWait.IN := TRUE ;
+		IF NOT CycleStopping AND tonWait.Q THEN
+			eCR800StateCycleStop := CR800_CYCLE_STOPPPING_RESET_VARIABLES;
+		END_IF
+		
+	CR800_CYCLE_STOPPPING_RESET_VARIABLES:
+		tonWait.IN := FALSE ;
+		bDoAction := FALSE;
+		eCR800StateReceiveCommand := 0;
+		eCR800SendCommand := 0;
+		eCR800StateDoRequest := 0; 	
+		eCR800StateCycleStop := CR800_CYCLE_STOPPPING_DONE;
+		
+	CR800_CYCLE_STOPPPING_DONE:
+		CycleStop := FALSE ;
+		eCR800State := CR800_CYCLE_STOPING_DONE;
+		eCR800StateCycleStop := CR800_CYCLE_STOPPPING_IDLE ;
+END_CASE
+
+tonWait();
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_DoAction_Done" Id="{ca68ccd3-67ad-45f4-9f10-cdb3ca061b46}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_DoAction_Done
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bDoAction := FALSE;
+eCR800State := CR800_IDLE_AUTO ;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_DoingAction" Id="{5a1b36c2-99e0-4878-ab6d-0b4e9be329c2}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_DoingAction
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF M_DoRequest(iNumberOfRequest := iActionNumber) THEN
+	eCR800State := CR800_DOING_ACTION_DONE ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GoAutoDone" Id="{3d2f838a-cafb-4acc-9cfe-123c4bd6140a}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GoAutoDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bGoAuto THEN
+	eCR800State := CR800_IDLE_AUTO ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GoHomeDone" Id="{41c5f828-467d-4cd8-b693-bb23af323f11}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GoHomeDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bGoHome THEN
+	eCR800State := CR800_IDLE_HOMED ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GoingAuto" Id="{a87f9877-fe33-4f6a-908c-399a9daed25e}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GoingAuto]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF M_DoRequest(E_RobotSystemActions.GO_AUTO) THEN
+	eCR800State := CR800_GOING_AUTO_DONE ;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_GoingHome" Id="{7589a6ba-9be5-495c-9b95-49fcdda15a33}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_GoingHome
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateHome OF
+
+	CR800_HOMING_IDLE:
+		IF eCR800State = CR800_IDLE_AUTO OR eCR800State = CR800_IDLE_AUTO_PAUSED THEN
+			eCR800StateHome	:= CR800_HOMING_RESET_PROGRAM ;
+		ELSE 
+			eCR800StateHome	:= CR800_HOMING_SEND_REQUEST ;
+		END_IF
+		
+	CR800_HOMING_RESET_PROGRAM:
+		IF M_ProgramReset() THEN
+			eCR800StateHome := CR800_HOMING_RESET_CYCLE_VARIABLES ;
+		END_IF	
+		
+	CR800_HOMING_RESET_CYCLE_VARIABLES:
+		bDoAction := FALSE;
+		eCR800StateReceiveCommand := 0;
+		eCR800SendCommand := 0;
+		eCR800StateDoRequest := 0;
+		eCR800StateHome := CR800_HOMING_START_PROGRAM ;	
+	
+		
+	CR800_HOMING_START_PROGRAM:
+		IF M_ProgramStart() THEN
+			eCR800StateHome := CR800_HOMING_SEND_REQUEST ;
+		END_IF
+	
+	CR800_HOMING_SEND_REQUEST:
+		IF M_DoRequest(E_RobotSystemActions.DO_HOMING) THEN   
+			eCR800StateHome := CR800_HOMING_DONE ;
+		END_IF	
+		
+	CR800_HOMING_DONE:
+		eCR800State := CR800_GOING_HOME_DONE ;
+		eCR800StateHome := CR800_HOMING_IDLE ;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_IdleAuto" Id="{abf755d5-ac4f-49f8-972c-277efc305c30}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_IdleAuto
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_IdleAutoPaused" Id="{9619fb3b-a63b-4fa5-b90e-9e3c1bb0de84}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_IdleAutoPaused
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_IdleCyclePaused" Id="{bf661bbe-38f2-47ab-9f10-204d53148e44}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_IdleCyclePaused
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_IdleHomed" Id="{c70839a5-51de-4a88-99e9-fd784b034da3}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_IdleHomed
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_IdleNotHomed" Id="{7348d8ab-9c06-491b-9c7b-f17804153413}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_IdleNotHomed
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_InExternalError" Id="{c92f03fe-3448-40da-b340-f19b34223efa}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_InExternalError
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[bDontSetInitialParameters := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Initializing" Id="{f5ae5e5a-c318-4172-9865-cdac2f774775}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Initializing
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateInitializing OF
+		
+	CR800_INIT_IDLE:
+		eCR800StateInitializing := CR800_INIT_ETHERCAT_CHCEK ;
+		
+	CR800_INIT_ETHERCAT_CHCEK:
+		tonWatchdog.IN := TRUE ;
+		IF stCR800EthercatData.iInfoDataState = 8 THEN
+			tonWatchdog.IN := FALSE ;	
+			eCR800StateInitializing := CR800_INIT_POWER_CHCECK;
+		ELSIF tonWatchdog.Q THEN
+			bError := TRUE ;
+			eErrorID := CR800_ERROR_ETHERCAT_CHECK_FAIL ;			
+		END_IF
+	
+	CR800_INIT_POWER_CHCECK:
+		tonWatchdog.IN := TRUE ;
+		IF CR800PoweredOn THEN
+			tonWatchdog.IN := FALSE ;	
+			eCR800StateInitializing := CR800_INIT_EMERG_STOP_CHCECK;
+		ELSIF tonWatchdog.Q THEN
+			bError := TRUE ;
+			eErrorID := CR800_ERROR_POWER_CHECK_FAIL ;			
+		END_IF
+		
+		
+	CR800_INIT_EMERG_STOP_CHCECK:
+		tonWatchdog.IN := TRUE ;
+		IF NOT EmergencyStopOccuring THEN
+			tonWatchdog.IN := FALSE ;	
+			eCR800StateInitializing := CR800_INIT_CHECK_FOR_AUTO_MODE;
+		ELSIF tonWatchdog.Q THEN
+			bError := TRUE ;
+			eErrorID := CR800_ERROR_EMERGENCY_STOP_OCCURING ;			
+		END_IF
+		
+	CR800_INIT_CHECK_FOR_AUTO_MODE:
+		tonWatchdog.IN := TRUE;
+		IF InAutomaticMode THEN
+			tonWatchdog.IN 			:= FALSE ;	
+			eCR800StateInitializing := CR800_INIT_ENABLE_RIGHTS;
+		ELSIF tonWatchdog.Q THEN
+			bError := TRUE ;
+			eErrorID := CR800_ERROR_AUTO_MODE_CHECK_FAIL ;		
+		END_IF
+		
+	CR800_INIT_ENABLE_RIGHTS:
+		IF M_OperationRigtsEnable(bRequest := TRUE) THEN
+			eCR800StateInitializing	:= CR800_INIT_SERVO_ON ;
+		END_IF
+		
+	CR800_INIT_SERVO_ON:
+		IF M_ServoON() THEN
+			eCR800StateInitializing	:= CR800_INIT_PROGRAM_RESET ;
+		END_IF
+		
+	CR800_INIT_PROGRAM_RESET:
+		IF M_ProgramReset() THEN
+			eCR800StateInitializing	:= CR800_INIT_PROGRAM_START ;
+		END_IF
+			
+	CR800_INIT_PROGRAM_START:
+		IF M_ProgramStart() THEN
+			IF bDontSetInitialParameters THEN 
+				bDontSetInitialParameters := FALSE ;
+				eCR800StateInitializing := CR800_INIT_DONE ;			
+			ELSE
+				eCR800StateInitializing := CR800_INIT_SET_INITIAL_PARAMETERS_REQUEST ;				
+			END_IF
+		END_IF	
+
+	CR800_INIT_SET_INITIAL_PARAMETERS_REQUEST: 
+		IF M_DoRequest(iNumberOfRequest := E_RobotSystemActions.SET_INITIAL_PARAMETERS) THEN
+			eCR800StateInitializing := CR800_INIT_DONE ;
+		END_IF
+
+	CR800_INIT_DONE:
+		IF NOT bInitProgram THEN
+			eCR800State := CR800_READY_INITIALIZED;
+		ELSE
+			eCR800State := CR800_AUTO_RESTORING_DONE;
+		END_IF
+		eCR800StateInitializing := CR800_INIT_IDLE ;
+			
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_ReadyInitialized" Id="{12ff3a8e-6798-4f2a-b537-b1d54fe8828a}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_ReadyInitialized
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eCR800State := CR800_IDLE_NOT_HOMED;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Reset" Id="{34c0c9b2-1b2c-4010-960d-7506b55d0e1a}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_Reset
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ResetVariables();
+IF MR_ResetCR800Err() THEN
+	eCR800State := CR800_RESET_DONE;
+	eErrorID := CR800_ERROR_OK;
+	bError := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_ResetDone" Id="{3057da0b-47ce-4634-8364-c0757a99eae0}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_ResetDone
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bReset THEN
+	IF eCR800StateBeforeReset >= CR800_IDLE_NOT_HOMED  THEN
+		eCR800State := CR800_IDLE_NOT_HOMED ;
+	ELSE
+		eCR800State := CR800_UNINITIALIZED ;
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_RestoreAutoDone" Id="{57ed0bd2-30e9-4fa2-825a-949f1c4ad836}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_RestoreAutoDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bRestoreAuto THEN
+	eCR800State := CR800_IDLE_NOT_HOMED ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_RestoreCycleDone" Id="{b5dbeb66-3dce-4f38-9d59-6d16ab2971f9}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_RestoreCycleDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bRestoreCycle THEN
+	eCR800State := CR800_DOING_ACTION ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_RestoringAuto" Id="{19a1a030-dd62-4824-97e6-87cd4a93e7cf}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_RestoringAuto]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[eCR800State := CR800_ABORTING ;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_RestoringCycle" Id="{2cb9feee-0ccc-4b90-85c9-00de609a27a8}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_RestoringCycle
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF M_ProgramStart() THEN 
+	eCR800State := CR800_CYCLE_RESTORING_DONE ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_SendingPosition1" Id="{3238556a-97a4-40e5-958f-ab5853534abe}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_SendingPosition1
+VAR_INST
+	lrPositionXFirstHalf  	: LREAL;
+	lrPositionXSecondHalf  	: LREAL;
+	lrPositionYFirstHalf  	: LREAL;
+	lrPositionYSecondHalf 	: LREAL;
+	lrRotationFirstHalf  	: LREAL;
+	lrRotationSecondHalf	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateSendPosition OF 
+	CR800_SEND_POSITION_CONVERTING:
+		LTRUNC( lr_in := lrPositionX1,
+				LTRUNC => lrPositionXFirstHalf);
+		LTRUNC( lr_in := lrPositionY1,
+				LTRUNC => lrPositionYFirstHalf);
+		LTRUNC( lr_in := lrRotation1,
+				LTRUNC => lrRotationFirstHalf);
+	
+		FRAC( lr_in := lrPositionX1,
+				FRAC => lrPositionXSecondHalf);
+		FRAC( lr_in := lrPositionY1,
+				FRAC => lrPositionYSecondHalf);
+		FRAC( lr_in := lrRotation1,
+				FRAC => lrRotationSecondHalf);
+				
+		eCR800StateSendPosition := CR800_SEND_POSITION_SENDING;
+		
+	CR800_SEND_POSITION_SENDING:
+		stCR800EthercatData.arrRegistersOutput[6022] :=	LREAL_TO_INT(lrPositionXFirstHalf); 
+		stCR800EthercatData.arrRegistersOutput[6023] :=	LREAL_TO_INT(1000 * lrPositionXSecondHalf); 
+		stCR800EthercatData.arrRegistersOutput[6024] :=	LREAL_TO_INT(lrPositionYFirstHalf); 
+		stCR800EthercatData.arrRegistersOutput[6025] :=	LREAL_TO_INT(1000 * lrPositionYSecondHalf); 
+		stCR800EthercatData.arrRegistersOutput[6026] :=	LREAL_TO_INT(lrRotationFirstHalf); 
+		stCR800EthercatData.arrRegistersOutput[6027] :=	LREAL_TO_INT(1000 * lrRotationSecondHalf); 
+			
+		eCR800State := CR800_SEND_POSITION_1_DONE;
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_SendingPosition1Done" Id="{2545e0e8-84f3-48dc-81ca-c991659e625f}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_SendingPosition1Done
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bSendPosition1 THEN
+	eCR800State := eCR800StateBeforeSendPosition;
+	bBusy := FALSE;
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_SendingPosition2" Id="{bb5100dc-9aa1-44d1-8057-23f4f4bf4aed}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_SendingPosition2
+VAR_INST
+	lrPositionXFirstHalf  	: LREAL;
+	lrPositionXSecondHalf  	: LREAL;
+	lrPositionYFirstHalf  	: LREAL;
+	lrPositionYSecondHalf 	: LREAL;
+	lrRotationFirstHalf  	: LREAL;
+	lrRotationSecondHalf	: LREAL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800StateSendPosition OF 
+	CR800_SEND_POSITION_CONVERTING:
+		LTRUNC( lr_in := lrPositionX2,
+				LTRUNC => lrPositionXFirstHalf);
+		LTRUNC( lr_in := lrPositionY2,
+				LTRUNC => lrPositionYFirstHalf);
+		LTRUNC( lr_in := lrRotation2,
+				LTRUNC => lrRotationFirstHalf);
+	
+		FRAC( lr_in := lrPositionX2,
+				FRAC => lrPositionXSecondHalf);
+		FRAC( lr_in := lrPositionY2,
+				FRAC => lrPositionYSecondHalf);
+		FRAC( lr_in := lrRotation2,
+				FRAC => lrRotationSecondHalf);
+				
+		eCR800StateSendPosition := CR800_SEND_POSITION_SENDING;
+		
+	CR800_SEND_POSITION_SENDING:
+		stCR800EthercatData.arrRegistersOutput[6028] :=	LREAL_TO_INT(lrPositionXFirstHalf); 
+		stCR800EthercatData.arrRegistersOutput[6029] :=	LREAL_TO_INT(1000 * lrPositionXSecondHalf); 
+		stCR800EthercatData.arrRegistersOutput[6030] :=	LREAL_TO_INT(lrPositionYFirstHalf); 
+		stCR800EthercatData.arrRegistersOutput[6031] :=	LREAL_TO_INT(1000 * lrPositionYSecondHalf); 
+		stCR800EthercatData.arrRegistersOutput[6032] :=	LREAL_TO_INT(lrRotationFirstHalf); 
+		stCR800EthercatData.arrRegistersOutput[6033] :=	LREAL_TO_INT(1000 * lrRotationSecondHalf); 
+			
+		eCR800State := CR800_SEND_POSITION_2_DONE;
+		
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_SendingPosition2Done" Id="{b6f2be5e-2d18-4788-b850-732c63992871}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_SendingPosition2Done
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bSendPosition2 THEN
+	eCR800State := eCR800StateBeforeSendPosition;
+	bBusy := FALSE;
+	
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_Uninitialized" Id="{4d75b9ec-8bcb-49f8-8851-09ce1a276071}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD Protected MS_Uninitialized
+VAR_inst
+	iLoop: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[//M_ResetVariables();
+
+//M_OperationRigtsEnable(bRequest 	:= 0);
+//eCR800StateDoRequest				:= 0 ;
+eCR800StateHome 					:= 0 ;	
+//eCR800StateReceiveCommand			:= 0 ;
+//eCR800SendCommand					:= 0 ;
+//eCR800StateInitializing 			:= 0 ;
+eCR800StateCycleStop 				:= 0 ; 
+eCR800StateCyclePause				:= 0 ; 
+eCR800StateSendPosition				:= 0 ;
+
+eErrorID := CR800_ERROR_OK;
+
+bUninitialized := TRUE;
+bInit := FALSE;
+bGoHome := FALSE;
+bUpdateRecipes := FALSE;
+bGoAuto := FALSE;
+bDoAction := FALSE;
+bCycleStop := FALSE;
+bCyclePause := FALSE;
+bRestoreAuto := FALSE;
+bRestoreCycle := FALSE;
+bAbort := FALSE;
+bError := FALSE;
+bAutoModeStarted := FALSE;
+bIsHomed := FALSE;
+bReset := FALSE;
+bStopped := FALSE;
+bActive := FALSE; 
+	
+IF ServoIsOn THEN
+	MR_Abort();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_UpdateRecipiesDone" Id="{30819b25-82d4-4e5f-a59e-90c8881fc9c5}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_UpdateRecipiesDone
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bUpdateRecipes THEN
+	eCR800State := CR800_IDLE_HOMED ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="MS_UpdatingRecipies" Id="{439c91ac-3c87-4562-a4b1-30752e0affa0}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD PROTECTED MS_UpdatingRecipies]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF M_DoRequest(iNumberOfRequest := E_RobotSystemActions.UPDATE_RECIPIES) THEN
+	eCR800State := CR800_UPDATE_RECIPIES_DONE ;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Name" Id="{35bbffdf-6ef7-41dd-bf11-448ccc7794a5}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[PROPERTY Name : STRING]]></Declaration>
+      <Get Name="Get" Id="{f7a17b49-b28f-4faf-b28c-ec63464e9ecd}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Name := sName;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{c986eb37-7cae-41cc-9b20-c6f1e1412a95}">
+        <Declaration><![CDATA[
+VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sName := Name;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="OperationRightsEnable" Id="{37d3e2b1-4282-45c6-b87f-2d07511c512d}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from CR800 side: Sets the validity of the operation rights for the
+external signal control.. *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY OperationRightsEnable : BOOL]]></Declaration>
+      <Get Name="Get" Id="{11197905-6b02-4aaa-b983-143bf33deab4}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[OperationRightsEnable := stCR800EthercatData.arrSignalsOutputConverted[6004] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{d47c9cb1-1403-4673-b1f2-8e4c1af3a2da}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6004] := OperationRightsEnable ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="OperationRightsEnabled" Id="{4312a89e-3d6d-44f2-9eb9-e470cbdd32bf}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(*Desription from CR800 side:
+Outputs the operation rights valid state for the
+external signal control.
+The operation right is given when the
+operation right input signal is ON, the
+controller mode is set to AUTOMATIC, and
+there is no other device that currently has the
+operation right.*)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC OperationRightsEnabled : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c07b1e1e-5723-40e6-8a47-a4cd65451b59}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[OperationRightsEnabled := stCR800EthercatData.arrSignalsInputConverted[6004] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Override" Id="{ec470acf-ac5d-49b5-a8de-3563338b2b78}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Reqest number that robot has to perform *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY Override : USINT]]></Declaration>
+      <Get Name="Get" Id="{78221b89-6126-490b-bcb4-c9a235f4d000}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[//Override :=	INT_TO_USINT(stCR800EthercatData.arrRegistersOutput[6021]);
+Override := iOverride;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{9f0302a9-9541-4546-b6eb-a10f61185657}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[//stCR800EthercatData.arrRegistersOutput[6021] := USINT_TO_INT(iOverride);
+iOverride := Override;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="Pausing" Id="{d8307d58-74ef-499a-be56-f7965b8dfe15}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"This output indicates that the program is
+paused.
+Turns ON when there is not slot multitask
+running, and at least one slot is pausing.
+However, slots whose starting condition is set
+to ALWAYS or ERROR via a parameter
+""SLT**"" will not be executed." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC Pausing : BOOL]]></Declaration>
+      <Get Name="Get" Id="{f66c83a9-2d53-4839-8085-f353d7d8941f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Pausing := stCR800EthercatData.arrSignalsInputConverted[6006] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ProgramOperating" Id="{fd2b9e35-af81-482e-8570-003602c629a9}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"This output indicates that a program is being
+executed. During multitask operation, this
+signal turns ON when at least one task slot is
+operating.
+However, slots whose starting condition is set
+to ALWAYS or ERROR via a parameter ""SLT*""
+will not be executed." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC ProgramOperating : BOOL]]></Declaration>
+      <Get Name="Get" Id="{e90080af-7c88-47cb-8830-99373f63d5e4}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ProgramOperating := stCR800EthercatData.arrSignalsInputConverted[6005] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ProgramReset" Id="{2dee6dbc-8fac-46b2-8327-2d2c8023867c}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"This input cancels the paused status of the
+program and brings the executing line to the
+top. Executing a program reset makes it
+possible to select a program.
+In the multitask mode, the program reset is
+applied to all task slots.
+However, slots whose starting condition is set
+to ALWAYS or ERROR via a parameter
+""SLT**"" will not be executed." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY ProgramReset : BOOL]]></Declaration>
+      <Get Name="Get" Id="{3489a4c8-d081-4905-aaa6-09ec2e5004b5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ProgramReset := stCR800EthercatData.arrSignalsOutputConverted[6009] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{2df69892-b838-40b0-a856-e94719352244}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6009] := ProgramReset ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ProgramSelectionEnabled" Id="{644c685d-d9a3-4e99-b808-d2f597fbbe48}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* "Outputs that in the program selection enabled
+state.
+Turns ON when program are not running or
+pausing.
+In multitask operation, this output turns ON
+when all task slots are neither operating nor
+paused.
+However, slots whose starting condition is set
+to ALWAYS or ERROR via a parameter
+""SLT**"" will not be executed" *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC ProgramSelectionEnabled : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{b9c79f33-9800-4afc-a5b8-458c5a0f6cf7}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ProgramSelectionEnabled := stCR800EthercatData.arrSignalsInputConverted[6009] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ProgramStart" Id="{7d27719c-f157-424b-b339-6ad4c0300bf8}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(*Desription from CR800 side:
+"This input starts a program. To start a specific
+program, select the program using the
+program selection signal ""PRGSEL"" and
+numerical input ""IODATA,"" and then input the
+start signal. Note that when the parameter
+""PST"" is enabled, the system reads the
+program number from the numerical input
+(IODATA) and starts the corresponding
+program (i.e., program selection becomes no
+longer necessary).
+All task slots are executed during multitask
+operation.
+However, slots whose starting condition is set
+to ALWAYS or ERROR via a parameter ""SLT*""
+will not be executed." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY ProgramStart : BOOL ; ]]></Declaration>
+      <Get Name="Get" Id="{1ed0b980-be4b-4de1-ab52-eabdd2638717}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ProgramStart := stCR800EthercatData.arrSignalsOutputConverted[6005] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{261da9b4-d015-4752-9541-766f46d7c645}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6005] := ProgramStart ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ProgramStop2" Id="{d7b20faa-c56a-489e-a109-57477be90816}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+This input stops the program being executed.
+(The specification is the same as for the STOP
+parameter.)
+Unlike the STOP parameter, signal numbers
+can be changed. *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY ProgramStop2 : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{2f50faf9-6137-4944-833f-62b2107b5cfa}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ProgramStop2 := stCR800EthercatData.arrSignalsOutputConverted[6007] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{60eb7214-06da-4dc7-8198-db6428d3b2fb}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6007] := ProgramStop2 ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ProgramStopped" Id="{7a95c8c8-0846-45b2-ae01-733686202e41}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"This output indicates that the program is
+paused.
+(The specification is the same as for the STOP
+parameter.)" *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC ProgramStopped : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c1b73a66-3bab-4b25-9322-bacce2435c70}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ProgramStopped := bStopped; // stCR800EthercatData.arrSignalsInputConverted[6007] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="RequestNumber" Id="{0a4568cb-2092-4228-be9f-0e056783522e}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Reqest number that robot has to perform *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY RequestNumber : UINT]]></Declaration>
+      <Get Name="Get" Id="{f8a974b9-afe8-4170-a588-dead2f4743c1}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RequestNumber := iActionNumber;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{a38d52fb-07dc-421c-84cc-57211bfc8e3e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrRegistersOutput[6010] :=	UINT_TO_INT(RequestNumber);]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="SendingPosition1" Id="{6470b958-a3e9-40db-b4ab-d392bf3bcf34}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY SendingPosition1 : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{0ad3c884-e271-4aa2-aaca-3d653e96d411}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[SendingPosition1 REF= bSendPosition1;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="SendingPosition2" Id="{35bdc41c-587b-4303-8698-a89075726f73}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY SendingPosition2 : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{674979de-debb-4fc1-8f22-bf907ee21f01}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[SendingPosition2 REF= bSendPosition2;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ServoIsOff" Id="{0c65f81d-8652-48b5-8e22-e8177bb2d55c}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from a CR800 side:
+"This input turns OFF the servo power supply
+for the robot.(Applicable to all mechanisms)
+The servo cannot be turned ON while this
+signal is being input. *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC ServoIsOff : BOOL]]></Declaration>
+      <Get Name="Get" Id="{db504cef-d3cb-41cc-b809-8476689496cf}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ServoIsOff := NOT ServoIsOn AND CR800PoweredOn; //stCR800EthercatData.arrSignalsInputConverted[6012] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ServoIsOn" Id="{d8f89aa3-9159-4408-a94e-a9e4f0f39e6b}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from the CR800 side:
+"This output turns ON when the servo power
+supply for the robot is ON. If the servo power
+supply is OFF, this output also remains OFF.
+With a multi-mechanism configuration, this
+output turns ON when the servo of at least one
+mechanism is ON." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC ServoIsOn : BOOL
+
+]]></Declaration>
+      <Get Name="Get" Id="{01f0e4c3-728b-436a-be2f-93b89b7054f3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ServoIsOn := stCR800EthercatData.arrSignalsInputConverted[6011] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ServoOFF" Id="{e6b4a6ab-303f-48e5-a9a6-baf428a2568f}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Desription from a CR800 side:
+"This input turns OFF the servo power supply
+for the robot.(Applicable to all mechanisms)
+The servo cannot be turned ON while this
+signal is being input." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY ServoOFF : BOOL]]></Declaration>
+      <Get Name="Get" Id="{36565346-c7b5-4f77-8925-26717b0243e2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ServoOFF := stCR800EthercatData.arrSignalsOutputConverted[6012] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{9a5dc055-81ca-49de-b13e-df76a7ea4925}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6012] := ServoOFF ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="ServoON" Id="{9ae8bcb2-85a5-4378-97bd-55b7196cb184}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[(* Descrition from the CR800 side:
+"This input turns ON the servo power supply for
+the robot.
+With a multi-mechanism configuration, the
+servo power supplies for all mechanisms will
+be turned ON." *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY ServoON : BOOL]]></Declaration>
+      <Get Name="Get" Id="{dfc7ad4a-02ea-4f70-a970-9486f423c595}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ServoON := stCR800EthercatData.arrSignalsOutputConverted[6011] ;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{cf76c0a3-5429-490a-8efe-fb320b289ec0}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[stCR800EthercatData.arrSignalsOutputConverted[6011] := ServoON ;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="State" Id="{fc723802-12fa-4597-91b2-6467adc8cd9b}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Actual state of main state machine *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY State : REFERENCE TO E_CR800State
+]]></Declaration>
+      <Get Name="Get" Id="{51d13926-b985-497d-b434-0db3abac91d7}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[State REF= eCR800State;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="StateMachine" Id="{012a3770-08cc-4891-a9fe-47b4c4e91eb2}" FolderPath="StateMachine\">
+      <Declaration><![CDATA[METHOD Protected StateMachine
+VAR
+	MS_CycleStopping_Done: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE eCR800State OF
+	CR800_UNINITIALIZED:
+		MS_Uninitialized();
+		
+	CR800_INITIALIZING:
+		MS_Initializing();
+		
+	CR800_READY_INITIALIZED:
+		MS_ReadyInitialized();
+
+	CR800_IDLE_NOT_HOMED:
+		MS_IdleNotHomed();
+		
+	CR800_GOING_HOME:
+		MS_GoingHome();
+	
+	CR800_GOING_HOME_DONE:
+		MS_GoHomeDone();
+		
+	CR800_IDLE_HOMED:
+		MS_IdleHomed();
+
+	CR800_UPDATING_RECIPIES	:
+		MS_UpdatingRecipies();
+		
+	CR800_UPDATE_RECIPIES_DONE:
+		MS_UpdateRecipiesDone();
+		
+	CR800_GOING_AUTO:
+		MS_GoingAuto();
+		
+	CR800_GOING_AUTO_DONE:
+		MS_GoAutoDone();
+		
+	CR800_IDLE_AUTO:
+		MS_IdleAuto();
+		
+	CR800_DOING_ACTION:
+		MS_DoingAction();
+		
+	CR800_DOING_ACTION_DONE:
+		MS_DoAction_Done();
+
+	CR800_CYCLE_STOPPING:	
+		MS_CycleStopping();
+		
+	CR800_CYCLE_STOPING_DONE:
+		MS_CycleStopDone();
+		
+	CR800_IDLE_AUTO_PAUSED:
+		MS_IdleAutoPaused();
+		
+	CR800_AUTO_RESTORING:
+		MS_RestoringAuto();
+	
+	CR800_AUTO_RESTORING_DONE:
+		MS_RestoreAutoDone();
+		
+	E_CR800State.CR800_CYCLE_PAUSING:
+		MS_CyclePausing();
+		
+	E_CR800State.CR800_CYCLE_PAUSING_DONE:
+		MS_CyclePauseDone();
+	
+	CR800_IDLE_CYCLE_PAUSED:
+		MS_IdleCyclePaused();
+	
+	CR800_CYCLE_RESTORING:
+		MS_RestoringCycle();
+	
+	CR800_CYCLE_RESTORING_DONE:
+		MS_RestoreCycleDone();
+
+	CR800_IN_EXTERNAL_ERROR:
+		MS_InExternalError();
+		
+	CR800_SEND_POSITION_1:
+		MS_SendingPosition1();
+	
+	CR800_SEND_POSITION_1_DONE:
+		MS_SendingPosition1Done();	
+		
+	CR800_SEND_POSITION_2:
+		MS_SendingPosition2();
+	
+	CR800_SEND_POSITION_2_DONE:
+		MS_SendingPosition2Done();			
+		
+	CR800_RESET:
+		MS_Reset();
+		
+	CR800_RESET_DONE:
+		MS_ResetDone();
+		
+	CR800_ABORTING:
+		MS_Aborting();
+					
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="StopSTS" Id="{dc5ed8c5-c79b-4c31-85cd-839bd0e406d1}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(* Desription from CR800 side:
+"Outputs that the stop is being input. (Logical
+ADD of all devices.)" *)
+{attribute 'monitoring' := 'variable'}
+PROPERTY PUBLIC StopSTS : BOOL]]></Declaration>
+      <Get Name="Get" Id="{eb6b6393-4a98-449a-8098-4b332bf089ff}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[StopSTS := stCR800EthercatData.arrSignalsInputConverted[6008] ;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Uninitialized" Id="{bf13d04c-fffb-46b2-8d13-72f7204b3184}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY Uninitialized : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{a18f8b70-57d4-45f0-9214-3d1d4ffe5e1b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Uninitialized REF= bUninitialized;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea" Id="{df986b2d-0026-418a-8e57-776b62ecb440}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[(*Desription from CR800 side:
+This output indicates that the controller mode
+is set to AUTOMATIC.*)
+{attribute 'monitoring' := 'variable'}
+{attribute 'monitoring' := 'call'}
+PROPERTY  UserDefinedArea : ST_CR800UserDefinedArea]]></Declaration>
+      <Get Name="Get" Id="{4355b5a4-b051-475a-a29a-125ec6240942}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea.bArea1 := stCR800EthercatData.arrSignalsInputConverted[6241];
+UserDefinedArea.bArea2 := stCR800EthercatData.arrSignalsInputConverted[6242];
+UserDefinedArea.bArea3 := stCR800EthercatData.arrSignalsInputConverted[6243];
+UserDefinedArea.bArea4 := stCR800EthercatData.arrSignalsInputConverted[6244];
+UserDefinedArea.bArea5 := stCR800EthercatData.arrSignalsInputConverted[6245];
+UserDefinedArea.bArea6 := stCR800EthercatData.arrSignalsInputConverted[6246];
+UserDefinedArea.bArea7 := stCR800EthercatData.arrSignalsInputConverted[6247];
+UserDefinedArea.bArea8 := stCR800EthercatData.arrSignalsInputConverted[6248];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea1" Id="{0987af03-b7ee-4fe8-9e00-b1a4d61eb641}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea1 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{921379eb-83db-4521-a5a7-b79e6f348686}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea1 := stCR800EthercatData.arrSignalsInputConverted[6241];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea2" Id="{45ce973d-5eb9-434d-9def-0d29d9dd6f56}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea2 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{80b36451-007d-4d5f-a00f-c3b74f76b6f1}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea2 := stCR800EthercatData.arrSignalsInputConverted[6242];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea3" Id="{5cb2454d-215f-46b3-a2c0-f50d45a48ebd}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea3 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{2d0de437-2b63-4a87-a7f7-92fb8e6e8803}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea3 := stCR800EthercatData.arrSignalsInputConverted[6243];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea4" Id="{de12bf49-f521-452f-8f48-1d6ce3f853ab}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea4 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c85760b2-d696-4097-b5c5-e56b1e192938}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea4 := stCR800EthercatData.arrSignalsInputConverted[6244];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea5" Id="{4f7a9e64-2bcc-4cca-ac4c-7d53838cb59b}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea5 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{95795bc2-ddb4-4c2a-9445-442a8b3776a9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea5 := stCR800EthercatData.arrSignalsInputConverted[6245];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea6" Id="{473dd7f5-5a22-4fc6-b86d-dfe5e609141c}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea6 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{8ff9bdda-dbdc-40d9-9053-d45c83e2b9c9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea6 := stCR800EthercatData.arrSignalsInputConverted[6246];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea7" Id="{a6685822-9e5d-45f3-a572-2a2b410dd78c}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea7 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{3b994894-4f95-414f-b1d6-e64812720d86}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea7 := stCR800EthercatData.arrSignalsInputConverted[6247];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="UserDefinedArea8" Id="{7fc0c790-9675-4c96-b329-8076eaa3212f}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY UserDefinedArea8 : BOOL]]></Declaration>
+      <Get Name="Get" Id="{6f8f1a05-615f-4039-be14-6f78fab154b8}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[UserDefinedArea8 := stCR800EthercatData.arrSignalsInputConverted[6248];]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <LineIds Name="FB_CR800EtherCAT">
+      <LineId Id="3" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="4" Count="1" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="6" Count="13" />
+      <LineId Id="21" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ActionNumber.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ActionNumber.Set">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Active.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.AutoModeStarted.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.BatteryLow.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.BatteryReset.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.BatteryReset.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.BatteryResetCompleted.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Busy.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.CR800PoweredOn.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.CycleStop.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.CycleStop.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.CycleStopping.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.DoingAction.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.EmergencyStopOccuring.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Error.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Errorname.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ErrorOccuring.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ErrorReset.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ErrorReset.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.EthercatData.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.InAutomaticMode.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.InRemoteMode.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.InTeachingMode.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.IsHomed.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ConvertEthercatData">
+      <LineId Id="3" Count="18" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_DoRequest">
+      <LineId Id="3" Count="19" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_OperationRigtsEnable">
+      <LineId Id="3" Count="23" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ProgramReset">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ProgramStart">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ProgramStop">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ReceiveCommand">
+      <LineId Id="3" Count="34" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ResetVariables">
+      <LineId Id="3" Count="25" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_SendCommand">
+      <LineId Id="3" Count="35" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ServoOff">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.M_ServoOn">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MainStateMachine.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_Abort">
+      <LineId Id="3" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_BatteryReset">
+      <LineId Id="3" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_CyclePause">
+      <LineId Id="3" Count="16" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_CycleStop">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_DoAction">
+      <LineId Id="3" Count="28" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_FirstCycle">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_GoAuto">
+      <LineId Id="3" Count="20" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_GoHome">
+      <LineId Id="3" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_Init">
+      <LineId Id="3" Count="14" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_Reset">
+      <LineId Id="3" Count="13" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_ResetCR800Err">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_RestoreAuto">
+      <LineId Id="3" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_RestoreCycle">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_SendPosition1">
+      <LineId Id="3" Count="14" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="18" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_SendPosition2">
+      <LineId Id="3" Count="14" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="18" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MR_UpdateRecipies">
+      <LineId Id="3" Count="12" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_Aborting">
+      <LineId Id="3" Count="57" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_CyclePauseDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_CyclePausing">
+      <LineId Id="3" Count="15" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_CycleStopDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_CycleStopping">
+      <LineId Id="3" Count="29" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_DoAction_Done">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_DoingAction">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_GoAutoDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_GoHomeDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_GoingAuto">
+      <LineId Id="3" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_GoingHome">
+      <LineId Id="3" Count="35" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_IdleAuto">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_IdleAutoPaused">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_IdleCyclePaused">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_IdleHomed">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_IdleNotHomed">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_InExternalError">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_Initializing">
+      <LineId Id="3" Count="83" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_ReadyInitialized">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_Reset">
+      <LineId Id="3" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_ResetDone">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_RestoreAutoDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_RestoreCycleDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_RestoringAuto">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_RestoringCycle">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_SendingPosition1">
+      <LineId Id="3" Count="27" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_SendingPosition1Done">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_SendingPosition2">
+      <LineId Id="3" Count="27" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_SendingPosition2Done">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_Uninitialized">
+      <LineId Id="3" Count="34" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_UpdateRecipiesDone">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.MS_UpdatingRecipies">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Name.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Name.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.OperationRightsEnable.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.OperationRightsEnable.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.OperationRightsEnabled.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Override.Get">
+      <LineId Id="2" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Override.Set">
+      <LineId Id="2" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Pausing.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramOperating.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramReset.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramReset.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramSelectionEnabled.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramStart.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramStart.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramStop2.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramStop2.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ProgramStopped.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.RequestNumber.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.RequestNumber.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.SendingPosition1.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.SendingPosition2.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ServoIsOff.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ServoIsOn.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ServoOFF.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ServoOFF.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ServoON.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.ServoON.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.State.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.StateMachine">
+      <LineId Id="3" Count="96" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.StopSTS.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.Uninitialized.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea.Get">
+      <LineId Id="3" Count="6" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea1.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea2.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea3.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea4.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea5.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea6.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea7.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_CR800EtherCAT.UserDefinedArea8.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

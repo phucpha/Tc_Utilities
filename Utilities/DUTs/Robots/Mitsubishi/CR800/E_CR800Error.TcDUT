@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CR800Error" Id="{55aff114-f127-4ac3-b984-2d5a6ff17f58}">
+    <Declaration><![CDATA[(* Enum for error handling FB_CR800Ethercat *)
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_CR800Error :
+(
+	CR800_ERROR_OK										:= 0,	(*  *)
+	CR800_ERROR_ETHERCAT_CHECK_FAIL						:= 5,	(*  *) 
+	CR800_ERROR_POWER_CHECK_FAIL						:= 10,	(*  *) 
+	CR800_ERROR_EMERGENCY_STOP_OCCURING					:= 20, 	(*  *)
+	CR800_ERROR_AUTO_MODE_CHECK_FAIL					:= 30,	(*  *)
+	CR800_ERROR_GRANTING_OPERATION_RIGHTS_TIMED_OUT 	:= 40,	(*  *)
+	CR800_ERROR_ABORTING_OPERATION_RIGHTS_TIMED_OUT 	:= 50,	(*  *)
+	CR800_ERROR_SERVO_ON_TIMED_OUT						:= 60,	(*  *)
+	CR800_ERROR_CANT_RESET_PRG_DURING_PRG_RUN			:= 70,	(*  *)
+	CR800_ERROR_RESET_PRG_TIMED_OUT						:= 80,	(*  *)
+	CR800_ERROR_START_PRG_TIMED_OUT						:= 90,	(*  *)
+	CR800_ERROR_SEND_COMMAND_TIMED_OUT					:= 100,	(*  *)	
+	CR800_ERROR_RECEIVE_COMMAND_TIMED_OUT				:= 110,	(*  *)	
+	CR800_ERROR_CANT_GO_AUTO_WITHOUT_BEEING_HOMED		:= 120,	(*  *)		
+	CR800_ERROR_CANT_DO_ACTION_WITHOUT_BEEING_AUTO		:= 130,	(*  *)	
+	CR800_ERROR_CANT_DO_SYSTEM_ACTION_IN_THIS_REQUEST	:= 140,	(*  *)
+	CR800_ERROR_CR800_ERROR_OCCURING					:= 150	(*  *) 
+		
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

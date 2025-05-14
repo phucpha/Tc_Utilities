@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RobotSystemActions" Id="{07de02da-a20d-419c-86bf-419c29639074}">
+    <Declaration><![CDATA[(* Enums for setting proper action in proper request. Used only internaly for FB_CR800Ethercat *) 
+//{attribute 'qualified_only'}
+//{attribute 'strict'}
+TYPE E_RobotSystemActions :
+(
+	SET_INITIAL_PARAMETERS 	:= 0, 
+	DO_HOMING 				:= 1,
+	GO_AUTO					:= 11,
+	UPDATE_RECIPIES 		:= 12	
+)UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

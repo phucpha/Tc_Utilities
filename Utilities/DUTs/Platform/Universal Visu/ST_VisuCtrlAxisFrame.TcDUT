@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_VisuCtrlAxisFrame" Id="{c470a7f1-66bd-4257-be23-5042ae9ac889}">
+    <Declaration><![CDATA[TYPE ST_VisuCtrlAxisFrame EXTENDS ST_VisuCtrlUnitFrame :
+STRUCT
+	sUnit 				: STRING := 'Unknown';	(*  *)
+	
+	btnInit 			: BOOL;						(*  *)
+	btnAbort 			: BOOL;						(*  *)
+	btnReset			: BOOL;						(*  *)
+	btnHome 			: BOOL;						(*  *)
+	btnHalt				: BOOL;						(*  *)
+	btnJogPositive 		: BOOL;						(*  *)
+	btnJogNegative 		: BOOL;						(*  *)
+	
+	bActive				: BOOL;						(*  *)
+	bHomed 				: BOOL;						(*  *)
+	bInPosition 		: BOOL;						(*  *)
+	bHalted				: BOOL;						(*  *)
+	bError				: BOOL;						(*  *)
+	iErrorID			: UDINT;					(*  *)
+	
+	lrActualPosition	: LREAL;					(*  *)
+	lrActualVelocity	: LREAL;					(*  *)
+	lrLagError			: LREAL;					(*  *)
+	
+	lrSetPosition		: LREAL;					(*  *)
+	lrSetVelocity		: LREAL;					(*  *)
+	
+	lrOverride			: LREAL := 30.0;			(*  *)
+	
+	lrJogDistance 		: LREAL;					(*  *)
+	lrJogVelocity		: LREAL;					(*  *)
+	lrJogAcceleration	: LREAL;					(*  *)
+	lrJogDeceleartion	: LREAL;					(*  *)
+	
+	sAxisImage			: STRING;					(*  *)
+	eJogMode			: E_VisuCtrlAxisJogMode;	(*  *)
+	eAxisState			: E_AxisState;				(*  *)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RecipesManagerReturns" Id="{c461e9e9-4709-436d-96b0-321d8ebb5c00}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_RecipesManagerReturns :
+(
+	RECIPES_MANAGER_ERR_OK										:= 0,	(* The operation was carried out successfully *)
+	RECIPES_MANAGER_ERR_FAILED									:= 10,	(* The operation failed *)
+	RECIPES_MANAGER_ERR_PARAMETER								:= 20,	(* Incorrect parameter *)
+	RECIPES_MANAGER_ERR_NOTINITALIZED							:= 30,	(* The data server object is not initialized *)
+	RECIPES_MANAGER_ERR_NOIMPLEMENTED							:= 40,	(* The data server does not implement *)
+	RECIPES_MANAGER_ERR_NO_OBJECT								:= 50,	(* Not all variables of a recipe definition can be written via the data server *)
+	RECIPES_MANAGER_ERR_NOMEMORY								:= 60,	(* The recipe definition has no free memory to create a new recipe *)
+	RECIPES_MANAGER_ERR_RECIPE_FILE_NOT_FOUND 					:= 70,	(* The recipe file was not found *)
+	RECIPES_MANAGER_ERR_RECIPE_MISMATCH							:= 80,	(* The contents of the recipe file do not match the current recipe *)
+	RECIPES_MANAGER_ERR_RECIPE_SAVE_ERR							:= 90,	(* The storage procedure failed *)
+	RECIPES_MANAGER_ERR_RECIPE_NOT_FOUND						:= 100,	(* The recipe does not exist *)
+	RECIPES_MANAGER_ERR_RECIPE_DEFINITION_NOT_FOUND				:= 110,	(* The recipe definition does not exist *)
+	RECIPES_MANAGER_ERR_RECIPE_ALREADY_EXIST					:= 120,	(* The recipe already exists in the recipe definition *)
+	RECIPES_MANAGER_ERR_NO_RECIPE_MANAGER_SET					:= 130,	(* The global recipe manager has not been created *)
+	RECIPES_MANAGER_ERR_RECIPE_NOT_ALL_VARIABLES_WERE_LOADED	:= 140,	(* The recipe definition contains more variables than the recipe file *)
+	RECIPES_MANAGER_ERR_RECIPES_MANAGER_LOCKED					:= 150,	(* The recipe manager was blocked during the online change *)
+	RECIPES_MANAGER_ERR_SOURCE_EXHAUSTED						:= 160,	(* Used for UTF8 Helper *)
+	RECIPES_MANAGER_ERR_TARGET_EXHAUSTED						:= 170,	(* Used for UTF8 Helper *)
+	RECIPES_MANAGER_ERR_SOURCE_ILLEGAL							:= 180	(* Used for UTF8 Helper *)
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

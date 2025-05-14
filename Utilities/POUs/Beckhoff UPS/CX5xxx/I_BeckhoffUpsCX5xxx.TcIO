@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_BeckhoffUpsCX5xxx" Id="{3dc01df3-af43-4f93-aa59-ca653263a8af}">
+    <Declaration><![CDATA[INTERFACE I_BeckhoffUpsCX5xxx EXTENDS I_UniversalCxUps
+]]></Declaration>
+    <Property Name="PersistentMode" Id="{f8f80dd5-3014-440e-acdc-20723c228dd5}">
+      <Declaration><![CDATA[PROPERTY PersistentMode : E_PersistentMode]]></Declaration>
+      <Get Name="Get" Id="{3f8c2932-d60f-4142-a5cc-b1115ed2d5af}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{f5fd4de3-a228-412f-9cce-5a2a9803e148}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Property Name="RecoverTime" Id="{57d7f8ce-fb5b-4346-a226-488e521139ed}">
+      <Declaration><![CDATA[PROPERTY RecoverTime : Time]]></Declaration>
+      <Get Name="Get" Id="{c4f7b01e-a8f6-4ba7-a71e-d0846656da56}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{5fa54889-0774-4e2f-ad12-e6102bae084e}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Property Name="UpsMode" Id="{562564d7-2f3b-49b5-9598-5640a6505357}">
+      <Declaration><![CDATA[PROPERTY UpsMode : E_S_UPS_Mode]]></Declaration>
+      <Get Name="Get" Id="{d8dcda28-25ec-4137-a8f0-d99c067e523a}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{d81dc8a1-02d3-47ff-be1e-ce978101a433}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Property Name="UpsPort" Id="{9d84303c-2094-4ce3-9a33-31cc80c333da}">
+      <Declaration><![CDATA[PROPERTY UpsPort : UINT]]></Declaration>
+      <Get Name="Get" Id="{bb094865-f350-4dcb-b64b-851d608e3317}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{fb978f2d-2c49-47eb-b8a2-76481602f683}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+  </Itf>
+</TcPlcObject>

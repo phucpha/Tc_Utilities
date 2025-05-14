@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FUN_TimestructToTime" Id="{796edccb-f6fd-45b7-9b19-c88a845b9034}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_TimestructToTime : STRING
+VAR_INPUT
+	stTime : TIMESTRUCT;
+END_VAR
+VAR
+	sTime : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[sTime := SYSTEMTIME_TO_STRING(stTime);
+FUN_TimestructToTime := RIGHT(sTime,12);]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_TimestructToTime">
+      <LineId Id="12" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

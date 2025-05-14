@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_VisuCtrlRecipeParameterType" Id="{f26c3581-5b5f-4e1b-8489-514a128114e0}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_VisuCtrlRecipeParameterType :
+(
+	VISU_CTRL_RECIPES_PARAMETER_TYPE_BOOL 	:= 0,
+	VISU_CTRL_RECIPES_PARAMETER_TYPE_INT	:= 1,
+	VISU_CTRL_RECIPES_PARAMETER_TYPE_REAL	:= 2,
+	VISU_CTRL_RECIPES_PARAMETER_TYPE_STRING := 3
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

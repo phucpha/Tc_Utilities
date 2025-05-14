@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_UpsCx51xx" Id="{8ae3296f-f5a5-4c78-8bce-e1d60466ccdc}" SpecialFunc="None">
+    <Declaration><![CDATA[(* 
+:Description: This function block takes care of persistent data save for 1 second UPS from CX51xx series 
+*)
+FUNCTION_BLOCK FB_UpsCx51xx EXTENDS FB_UpsCx5xxx
+VAR
+	fbSavePersistentData : FB_S_UPS_CX51x0;	(*  *)
+END_VAR
+(*
+Version history:
+
++-------------+------------+----------------+----------+------------------------------------------+
+|Date         | Version    | created under  | Author   | Remark                                   |
++=============+============+================+==========+==========================================+
+|2021-11      | 1.0.0.0    | V3.1.4024.22   | ADBO     | Function block created                   |
++-------------+------------+----------------+----------+------------------------------------------+
+|2022-01      | 1.1.0.0    | V3.1.4024.22   | ADBO     | Changed to extension of FB_UpsCx5xxx     |
++-------------+------------+----------------+----------+------------------------------------------+
+
+*)]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF bFirstCycle THEN
+	bFirstCycle := FALSE;
+	iUpsPort := 16#588;
+END_IF
+
+(* Save persistent data when an power failure occurred *)
+fbSavePersistentData(	sNetID			:= sNetID,
+						iPLCPort		:= iPlcPort,
+						iUPSPort		:= iUpsPort,
+						tTimeout		:= tTimeout,
+						eUpsMode		:= eUpsMode,
+						ePersistentMode	:= ePersistentMode,
+						tRecoverTime 	:= tRecoverTime);
+
+bPowerOk := NOT fbSavePersistentData.bPowerFailDetect;]]></ST>
+    </Implementation>
+    <LineIds Name="FB_UpsCx51xx">
+      <LineId Id="158" Count="1" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="147" Count="8" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

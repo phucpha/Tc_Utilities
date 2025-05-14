@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_CloseDialog" Id="{10380189-935d-4f74-b9f6-2129be62e9af}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_CloseDialog : BOOL
+VAR_INPUT
+	sDialogName : STRING;
+END_VAR
+VAR
+	pstClientData : POINTER TO VisuElems.VisuStructClientData;
+	itfDialogManager : VisuElems.IDialogManager;
+	itfMyDialog : VisuElems.IVisualisationDialog;
+	stVisuRect : VisuElems.VisuStructSimpleRectangle;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[VisuElems.VisuElemBase.g_ClientManager.BeginIteration();
+pstClientData := VisuElems.VisuElemBase.g_ClientManager.GetNextClient();
+WHILE pstClientData <> 0 DO
+   IF pstClientData^.GlobalData.ClientType = VisuElems.Visu_ClientType.HMITargetVisualization THEN
+      itfDialogManager := VisuElems.g_VisuManager.GetDialogManager();
+      itfMyDialog := itfDialogManager.GetDialog(sDialogName);
+      itfDialogManager.CloseDialog	(itfMyDialog, pstClientData);
+   END_IF
+   pstClientData := VisuElems.VisuElemBase.g_ClientManager.GetNextClient();
+END_WHILE]]></ST>
+    </Implementation>
+    <LineIds Name="F_CloseDialog">
+      <LineId Id="14" Count="5" />
+      <LineId Id="24" Count="2" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

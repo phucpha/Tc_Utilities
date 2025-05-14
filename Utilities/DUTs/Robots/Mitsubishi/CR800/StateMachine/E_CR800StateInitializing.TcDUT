@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CR800StateInitializing" Id="{3963927c-70b5-4c91-bfe1-3b98ccc1a492}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_CR800StateInitializing :
+(
+	CR800_INIT_IDLE								:= 0,	(* DUMMY *)
+	CR800_INIT_ETHERCAT_CHCEK					:= 5,	(* Check for ethercat *)
+	CR800_INIT_POWER_CHCECK						:= 10,	(* Check for power *)
+	CR800_INIT_EMERG_STOP_CHCECK				:= 20,	(* Check for emergency stop *)
+	CR800_INIT_CHECK_FOR_AUTO_MODE				:= 30,	(* Check for remote mode *)
+	CR800_INIT_ENABLE_RIGHTS					:= 40,	(* Enable operation rights *)
+	CR800_INIT_SERVO_ON							:= 50,	(* Servo on *)
+	CR800_INIT_PROGRAM_RESET					:= 60,	(* Reset program *)
+	CR800_INIT_PROGRAM_START					:= 70,	(* Start the program *)	
+	CR800_INIT_SET_INITIAL_PARAMETERS_REQUEST 	:= 80,	(* Send set initial parameters request*)
+	CR800_INIT_ROBOT_FIRST_CYCLE_DONE			:= 90,	(* Wait for information that first cycle is done *)
+	CR800_INIT_DONE								:= 100	(* Initalization done *)
+); 
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

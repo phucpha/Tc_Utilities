@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="F_QuandraticFomularMaxValue" Id="{8e68f864-77a1-4311-bcb3-bee7a62ed476}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK F_QuandraticFomularMaxValue
+VAR_INPUT
+	A : LREAL;
+	B : LREAL;
+	C : LREAL;
+	xLimit1 : LREAL;
+	xLimit2 : LREAL;
+END_VAR
+VAR
+	yAtxLimit1 : LREAL;
+	yAtxLimit2 : LREAL;
+	Adot : LREAL; // Adot = A'
+	Bdot : LREAL; // Bdot = B'
+	x : LREAL;
+END_VAR
+VAR_OUTPUT
+	MaxValue : LREAL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[yAtxLimit1 := F_QuanDraticCalculate(
+	A := A,
+	B := B,
+	C := C,
+	x := xLimit1
+);
+yAtxLimit2 := F_QuanDraticCalculate(
+	A := A,
+	B := B,
+	C := C,
+	x := xLimit2
+);		
+IF A > 0 THEN
+	MaxValue := MAX(yAtxLimit1, yAtxLimit2);
+ELSIF A < 0 THEN
+	Adot := 2 * A;
+	Bdot := B;
+	x := -Bdot / Adot;
+	MaxValue := F_QuanDraticCalculate(
+		A := A,
+		B := B,
+		C := C,
+		x := x
+	);	
+ELSE // A = 0, b is any
+	MaxValue := MAX(yAtxLimit1, yAtxLimit2);
+END_IF
+//F_QuandraticFomularMaxValue := MaxValue;]]></ST>
+    </Implementation>
+    <LineIds Name="F_QuandraticFomularMaxValue">
+      <LineId Id="29" Count="4" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="35" Count="4" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="59" Count="4" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="58" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

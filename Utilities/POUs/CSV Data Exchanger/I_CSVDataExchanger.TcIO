@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_CSVDataExchanger" Id="{dfbb812d-362b-40d0-b23a-0943ba8de3cf}">
+    <Declaration><![CDATA[INTERFACE I_CSVDataExchanger
+]]></Declaration>
+    <Property Name="Active" Id="{a4c02490-92d8-4f53-ad12-b364bf2d022b}">
+      <Declaration><![CDATA[PROPERTY Active : REFERENCE TO BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{3a8799df-d1cd-4a75-a572-7ac10a881a55}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Busy" Id="{cb71a8ef-f6d0-4d10-a97a-18c708a0351b}">
+      <Declaration><![CDATA[PROPERTY Busy : REFERENCE TO BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{8ef2c597-91a2-48b7-b02a-79050da2358b}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Error" Id="{3e0c1b05-88d9-4716-ae0c-f9b21af1382e}">
+      <Declaration><![CDATA[PROPERTY Error : REFERENCE TO BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{7b1616d1-0352-49d5-8f5f-cdb07908b804}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="ErrorID" Id="{22386a85-6e82-40a3-afff-d59c60f7cb51}">
+      <Declaration><![CDATA[PROPERTY ErrorID : REFERENCE TO UDINT
+]]></Declaration>
+      <Get Name="Get" Id="{759fb727-cd5d-4cd1-b6df-2ef46d125fb0}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="MR_Abort" Id="{4a086695-ccdb-4df6-bd7c-3c30fc6df630}">
+      <Declaration><![CDATA[METHOD MR_Abort : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="MR_FirstCycle" Id="{85f2dbe9-2a03-4749-8474-0c98f4ca692a}">
+      <Declaration><![CDATA[METHOD MR_FirstCycle : BOOL
+VAR_INPUT
+	sAmsNetId					: T_AmsNetId;	(* TwinCAT system network address *)
+	sFileDir					: T_MaxString;	(* CSV source file path *)
+	sFileName 					: T_MaxString;	(* CSV source file name *)
+//	bCreateFile					: BOOL;			(* If true FB will create file under given path *)
+//	bAddHeader					: BOOL;			(* If true there will be a header at the beginning of the doc *)
+	(*	In USA/UK the CSV field separator is a comma.
+	In Germany and some other European countries the CSV field separator is a semicolon. *)
+	bChangeSeparatorToComma		: BOOL;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="MR_Init" Id="{0bfaf584-1e7a-4870-8e0c-004388ff241f}">
+      <Declaration><![CDATA[METHOD MR_Init : BOOL
+VAR_INPUT
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="MR_Reset" Id="{6bacc665-4e20-4021-a6e7-2ed325644baf}">
+      <Declaration><![CDATA[METHOD MR_Reset : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="MR_SelectAll" Id="{42df9a43-2ab7-4641-ac43-df6c1d88d534}">
+      <Declaration><![CDATA[METHOD MR_SelectAll : BOOL
+VAR_INPUT
+	iArrDataBaseAdr 		: PVOID; 		(* A pointer to the string array where the 100 records (max.) from CSV file table are stored *)
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="MR_SelectPath" Id="{8713df26-a2a0-46a4-a0ed-bc7799598351}">
+      <Declaration><![CDATA[METHOD MR_SelectPath : BOOL
+VAR_INPUT
+	sFileDir								: T_MaxString; 			(* CSV source file directory name *)
+	sFileName 								: T_MaxString; 			(* CSV source file name *)
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_SelectRow" Id="{86c61ecc-f32e-4eb6-a74b-11a7ed9a6c80}">
+      <Declaration><![CDATA[METHOD MR_SelectRow : BOOL
+VAR_INPUT
+	iColumnToSearch 			: UDINT;		(* Column number to search the value in; columns are counted from 1 *)
+	sValueToSearch				: STRING;		(* Value that you are looking for *)
+	iArrParsedStringAdr 		: PVOID;		(* A pointer to the string array where the matched row with the search value is stored as a string array *)
+END_VAR
+
+VAR_OUTPUT
+	sRowResult					: STRING;
+END_VAR
+
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

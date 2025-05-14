@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_BaseEvent" Id="{53b2f43a-3fae-46fe-9e6b-3811b1cd753b}">
+    <Declaration><![CDATA[TYPE ST_BaseEvent :
+STRUCT
+	guidEventClass 			: 	GUID;														(*  *)
+	eSeverity 				: 	TcEventSeverity;											(*  *)
+	iEventId				:	UDINT;														(* Event ID number *)
+	iTimeStamp				: 	ULINT;														(* Timestamp when the event occured *)
+	sJsonAttribute	 		: 	STRING (10000);												(* Additional parameters *)
+	sSourceName				:	STRING(Tc3_EventLogger.ParameterList.cSourceNameSize-1);	(**)
+	iTcArguments			: 	I_TcArguments;												(**)
+	eEventType				:	E_EventType;												(**)
+	iType					:	BYTE;														(* 1 -> Alarm, 2 -> Message*)
+	iSourceID				:	UDINT;														(**)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

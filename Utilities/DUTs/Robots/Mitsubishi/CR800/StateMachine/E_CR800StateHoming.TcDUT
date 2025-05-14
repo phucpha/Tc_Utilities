@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CR800StateHoming" Id="{fdc1ad66-848f-4445-92b8-dd5f667b74bd}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_CR800StateHoming :
+(
+	CR800_HOMING_IDLE					:= 0,	(* DUMMY *)
+	CR800_HOMING_RESET_PROGRAM			:= 10,	(* Reset the program *)
+	CR800_HOMING_RESET_CYCLE_VARIABLES	:= 20,	(* Reset variables from doing action *)
+	CR800_HOMING_START_PROGRAM			:= 30,	(* Start the program *)
+	CR800_HOMING_SEND_REQUEST			:= 40,	(* Send homing reqest *)
+	CR800_HOMING_WAIT_FOR_HOME			:= 50,	(* Wait for information that homing is done *)
+	CR800_HOMING_DONE					:= 60	(* Homing done *)
+); 
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

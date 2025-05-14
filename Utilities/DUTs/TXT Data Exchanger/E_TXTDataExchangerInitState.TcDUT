@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_TXTDataExchangerInitState" Id="{cdcd2ecd-869a-4630-975a-4930db3b7bc1}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_TXTDataExchangerInitState :
+(
+	TXT_DATA_EXCHANGER_INIT_CREATE_DIR 		:= 0,	(* Creating directory if doesn't exist *)
+	TXT_DATA_EXCHANGER_INIT_GET_TIME		:= 10,	(* Getting current time *)
+	TXT_DATA_EXCHANGER_INIT_CREATE_FILE		:= 20,	(* Creating empty file of logger *)
+	TXT_DATA_EXCHANGER_INIT_ADD_HEADER		:= 30,	(* Adding header at the beggining of file *)
+	TXT_DATA_EXCHANGER_INIT_CLOSE_FILE		:= 40,	(* Closing file *)
+	TXT_DATA_EXCHANGER_INIT_DONE 			:= 50	(* Initiazlization done *)
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,137 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_AlarmControler" Id="{3984c38c-9915-4540-884b-363753ee2751}">
+    <Declaration><![CDATA[INTERFACE I_AlarmControler
+]]></Declaration>
+    <Property Name="Active" Id="{2a8f619a-dd85-4aeb-bd54-75218b29e6bb}">
+      <Declaration><![CDATA[PROPERTY Active : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{7244eb17-a0e3-4a49-ba5a-69383a84fee4}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="ActiveCritical" Id="{758ba293-f2f7-4d47-9e34-8110d89d8927}">
+      <Declaration><![CDATA[PROPERTY ActiveCritical : REFERENCE TO UDINT]]></Declaration>
+      <Get Name="Get" Id="{ae1a4685-6b48-4bfc-82c2-115d2a476243}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="ActiveError" Id="{48f9ca0b-9866-49b7-accc-404ae7c9e939}">
+      <Declaration><![CDATA[PROPERTY ActiveError : REFERENCE TO UDINT]]></Declaration>
+      <Get Name="Get" Id="{1ba1a4f8-0844-4a46-8a6c-b822060c17f7}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="ActiveInfo" Id="{2a251e6c-2c4e-482a-b797-0e2508e6bf38}">
+      <Declaration><![CDATA[PROPERTY ActiveInfo : REFERENCE TO UDINT]]></Declaration>
+      <Get Name="Get" Id="{4218612b-6900-4fa6-afe0-920f58052390}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="ActiveVerbose" Id="{5b9a0796-635d-416f-ba46-d5c640db2ded}">
+      <Declaration><![CDATA[PROPERTY ActiveVerbose : REFERENCE TO UDINT]]></Declaration>
+      <Get Name="Get" Id="{3f4fe3fe-c087-4d8b-8d77-5f643c999c29}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="ActiveWarrning" Id="{552e917b-cd99-4c94-a87a-6e8e70ca89ec}">
+      <Declaration><![CDATA[PROPERTY ActiveWarrning : REFERENCE TO UDINT]]></Declaration>
+      <Get Name="Get" Id="{93c7cfff-45a6-4023-a2ac-3d1251be6bbf}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Busy" Id="{b836a67d-2552-4e21-997a-9a9a6029707a}">
+      <Declaration><![CDATA[PROPERTY Busy : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{eb22ea72-734c-4002-94b0-ad7d457c7a6b}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="Error" Id="{e3c05109-7618-42b7-845a-160143d2084c}">
+      <Declaration><![CDATA[PROPERTY Error : REFERENCE TO BOOL]]></Declaration>
+      <Get Name="Get" Id="{fef87d4d-a59e-48de-8beb-4fd0e886ee58}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="FileName" Id="{abe38245-2d5b-4d79-b04c-c2bd675a9bfe}">
+      <Declaration><![CDATA[PROPERTY FileName : STRING]]></Declaration>
+      <Get Name="Get" Id="{29c4f576-e6be-4479-96c8-73e201d0f90e}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{1e9518f0-79cd-4c75-96c8-3c5f097bb238}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Property Name="MaxEvents" Id="{1dce21ec-acef-44e1-ba9b-92dc627ccf4a}">
+      <Declaration><![CDATA[PROPERTY MaxEvents : UDINT]]></Declaration>
+      <Get Name="Get" Id="{89757b0c-eb9e-43b6-8573-57c94d69727a}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="MR_Abort" Id="{53768c67-5562-4247-933b-2ec4b9184ce8}">
+      <Declaration><![CDATA[METHOD MR_Abort : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Clear" Id="{51f02b3f-5314-41b8-a632-d10b698c0672}">
+      <Declaration><![CDATA[METHOD MR_Clear : BOOL
+VAR_INPUT
+	ipFilter : I_TcEventFilter;
+	bResetConfirmation : BOOL;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_ClearAll" Id="{ed2ce2c6-09a4-42ab-9464-3b9b5c735f9e}">
+      <Declaration><![CDATA[METHOD MR_ClearAll : BOOL
+VAR_INPUT
+	bResetConfirmation : BOOL;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Confirm" Id="{2b6f42c7-602b-443b-ab59-dc82df534d7a}">
+      <Declaration><![CDATA[METHOD MR_Confirm : BOOL
+VAR_INPUT
+	ipFilter : I_TcEventFilter;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_ConfirmAll" Id="{c10c0b48-c0bc-407e-8610-ad5fd9e119ae}">
+      <Declaration><![CDATA[METHOD MR_ConfirmAll : BOOL
+VAR_INPUT
+	bResetConfirmation : BOOL;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Export" Id="{5cb74265-045e-4734-ba05-e937c2a6dab3}">
+      <Declaration><![CDATA[METHOD MR_Export : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_FirstCycle" Id="{28463785-51b8-4d36-8e5a-2e273fc8dc05}">
+      <Declaration><![CDATA[METHOD MR_FirstCycle : BOOL
+VAR_INPUT
+	sName 		: STRING;
+	sFileName 	: STRING;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="MR_Init" Id="{bc3cc481-3de9-40b1-9bcc-b187364c9e60}">
+      <Declaration><![CDATA[METHOD MR_Init : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Property Name="Name" Id="{2099f0ca-50ae-4c8a-8977-c1e3870033b8}">
+      <Declaration><![CDATA[PROPERTY Name : REFERENCE TO STRING]]></Declaration>
+      <Get Name="Get" Id="{b92729ea-bbee-4cc7-97e9-b3ffbdbbdd81}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="State" Id="{9eb36b5e-723b-4f4c-b13d-2dda186b7e7e}">
+      <Declaration><![CDATA[PROPERTY State : REFERENCE TO E_AlarmControlerState]]></Declaration>
+      <Get Name="Get" Id="{cb6a9fe9-39d4-4eda-b999-991d10da0f3a}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

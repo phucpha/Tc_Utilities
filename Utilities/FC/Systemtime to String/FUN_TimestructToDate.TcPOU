@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FUN_TimestructToDate" Id="{405ceef1-ca6e-4aba-96fd-3439f7ffa86b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_TimestructToDate : STRING
+VAR_INPUT
+	stTime : TIMESTRUCT;
+END_VAR
+VAR
+	sTime : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[sTime := SYSTEMTIME_TO_STRING(stTime);
+FUN_TimestructToDate := LEFT(sTime,10);
+]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_TimestructToDate">
+      <LineId Id="16" Count="0" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

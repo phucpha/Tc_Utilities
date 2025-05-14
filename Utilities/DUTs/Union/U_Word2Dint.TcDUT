@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="U_Word2Dint" Id="{789809e4-ee04-4b02-bb6c-9f3d7588d35d}">
+    <Declaration><![CDATA[TYPE U_Word2Dint :
+UNION
+	iWord	: ARRAY[0..1] OF WORD;
+	idInt	: DINT;
+END_UNION
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RobotActions" Id="{dc013bed-8585-4f26-8a18-bf079ec70226}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+TYPE E_RobotActions :
+(
+	(*System actions - DO NOT USE*)
+		FIRST_CYCLE := 0, (*RESERVED - DO NOT USE (used in separated method MR_Init*)
+		DO_HOMING 	:= 1, (*RESERVED - DO NOT USE (used in separated method MR_GoHome*)
+	
+	(*HOMED ACTIONS - from 11 to 50 (actions that a robot can do while is in home position)*)
+		GO_AUTO			:= 11, (*RESERVED - DO NOT USE (used in separated method MR_GoAuto*)
+		UPDATE_RECIPIES	:= 12, (*RESERVED - DO NOT USE (used in separated method MR_UpdateRecipies*)
+		(*
+		HOMED_ACTION03	:= 13,
+		.
+		. etc. 
+		HOMED_ACTION50	:= 50,
+		*)
+	
+	(*AUTO ACTIONS - from 51 to 100 (actions that a robot can do while is in auto mode)*)
+		PICK_AND_PLACE	:= 51, (* EXAMPLE *)
+		DO_CIRCLE		:= 52 (* EXAMPLE *)
+		(*AUTO_ACTION03	:= 53,
+	  	.
+		.
+		. etc.
+		AUTO_ACTION50	:= 100
+		*)
+)UINT;
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CSVDataExchangerSetNewPathState" Id="{60b1c068-25c7-4569-82f8-fc28db2f837f}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_CSVDataExchangerSetNewPathState :
+(
+	CSV_DATA_EXCHANGER_SET_NEW_PATH_CHANGE_PATH			:= 0,
+	CSV_DATA_EXCHANGER_SET_NEW_PATH_COUNT_FILE_COLUMNS	:= 10
+);
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

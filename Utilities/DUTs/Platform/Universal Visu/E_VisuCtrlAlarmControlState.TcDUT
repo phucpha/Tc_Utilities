@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_VisuCtrlAlarmControlState" Id="{0c397eb2-5d8b-406b-89d4-5d8794f18a78}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_VisuCtrlAlarmControlState :
+(
+	VISU_CTRL_ALARM_CONTROLER_WAIT_FOR_CMD 	:= 0,	(*  *)
+	VISU_CTRL_ALARM_CONTROLER_INIT			:= 10,	(*  *)
+	VISU_CTRL_ALARM_CONTROLER_CLEAR_ALL		:= 20,	(*  *)
+	VISU_CTRL_ALARM_CONTTOLER_EXPORT		:= 30,	(*  *)
+	VISU_CTRL_ALARM_CONTROLER_ABORT			:= -10	(*  *)
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

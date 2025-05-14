@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CSVDataExchangerState" Id="{07c014e0-85ed-4d0b-9d1a-8381c587ccfb}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_CSVDataExchangerState :
+(
+	CSV_DATA_EXCHANGER_UNINITIALIZED 				:= 0,	(* Not ready to work *)
+	CSV_DATA_EXCHANGER_INITIALIZING					:= 10,	(* Preparing to work *)
+	CSV_DATA_EXCHANGER_READY 						:= 20,	(* Ready to work *)
+	CSV_DATA_EXCHANGER_IDLE				 			:= 30,	(* Ready to work, waiting for logs in buffer *)
+	CSV_DATA_EXCHANGER_SELECT_ALL					:= 40,	
+	CSV_DATA_EXCHANGER_SELECT_ROW					:= 50,
+	CSV_DATA_EXCHANGER_SELECT_PATH					:= 60,
+	CSV_DATA_EXCHANGER_CREATE_TABLE					:= 70,	
+	CSV_DATA_EXCHANGER_INSERT_INTO_TABLE			:= 80,	(* Writting logs to file *)
+	CSV_DATA_EXCHANGER_RESET 						:= 90,	(* Reseting function block *)
+	CSV_DATA_EXCHANGER_METHOD_DONE					:= 100,	(* Writting done *)
+	CSV_DATA_EXCHANGER_ABORTING						:= -10	(* Aborting *)
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

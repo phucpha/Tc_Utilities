@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CR800StateCycleStopping" Id="{d7a4c85b-7d7f-4ab2-a182-b6b02ee7c26b}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_CR800StateCycleStopping :
+(
+	CR800_CYCLE_STOPPPING_IDLE				:= 0,	(* DUMMY *)
+	CR800_CYCLE_STOPPPING_SEND_REQUEST		:= 10,	(* Send "STOP CYCLE" reqest *)
+	CR800_CYCLE_STOPPPING_WAIT_FOR_STOP		:= 20,	(* Wait for information that "STOP CYCLE" mode is done *)
+	CR800_CYCLE_STOPPPING_RESET_VARIABLES	:= 30,	(* Wait for information that "STOP CYCLE" mode is done *)
+	CR800_CYCLE_STOPPPING_DONE				:= 40	(* Action done *)
+); 
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

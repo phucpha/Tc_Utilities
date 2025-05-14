@@ -1,0 +1,181 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_UniversalCxUps" Id="{b494f72d-5973-48b1-87b7-fba9ca370876}" SpecialFunc="None">
+    <Declaration><![CDATA[(* 
+:Description:
+*)
+FUNCTION_BLOCK ABSTRACT FB_UniversalCxUps IMPLEMENTS I_UniversalCxUps
+VAR
+	bFirstCycle : BOOL := TRUE;
+	
+	(* Internal parameters *)
+	sName 		: STRING;
+	sNetID		: STRING;
+	iPlcPort 	: UINT;
+	tTimeout	: TIME;
+	
+	(* Internal status *)
+	bPowerOk	: BOOL;
+END_VAR
+(*
+Version history:
+
++-------------+------------+----------------+----------+------------------------------------------+
+|Date         | Version    | created under  | Author   | Remark                                   |
++=============+============+================+==========+==========================================+
+|2022-01      | 1.0.0.0    | V3.1.4024.22   | ADBO     | Function block created                   |
++-------------+------------+----------------+----------+------------------------------------------+
+
+*)]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Folder Name="FirstCycle" Id="{ea140722-72f0-433e-82b8-80fa42ec70d2}" />
+    <Folder Name="Properties" Id="{21af108c-9909-42de-985e-e05dc6fe781a}">
+      <Folder Name="Parameters" Id="{7cdc47c0-4de6-4c5f-95bd-1b240c769c9d}" />
+      <Folder Name="Status" Id="{e3a65237-5693-48aa-b767-a062e86a146a}" />
+    </Folder>
+    <Method Name="MR_FirstCycle" Id="{429d4478-8cc1-47b2-bfd1-6fba5029d6c0}" FolderPath="FirstCycle\">
+      <Declaration><![CDATA[METHOD MR_FirstCycle : BOOL
+VAR_INPUT
+	sName 		: STRING;
+	sNetID		: STRING;
+	iPlcPort 	: UINT;
+	tTimeout	: TIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.sName := sName;
+THIS^.sNetID := sNetID;
+THIS^.iPlcPort := iPlcPort;
+THIS^.tTimeout := tTimeout;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Name" Id="{d18b4d08-c699-40d4-98fa-2a5c9546e3a0}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[PROPERTY Name : STRING
+]]></Declaration>
+      <Get Name="Get" Id="{d72c1fdb-89f9-47d9-9adc-b023e71628ee}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Name := sName;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{ed25cf25-6e9c-4f45-8933-7a27b452cebe}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sName := Name;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="NetId" Id="{cd8e04c2-2b67-4368-ac10-47934fef7e66}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[PROPERTY NetId : STRING
+]]></Declaration>
+      <Get Name="Get" Id="{6c394858-0fab-4931-8d9e-2c2013a24b68}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[NetId := sNetID;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{417752e3-ff31-4754-8631-647e7f87f3ac}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sNetId := NetId;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="PlcPort" Id="{029a7380-aabf-47f5-a388-dde141317c89}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[PROPERTY PlcPort : UINT
+]]></Declaration>
+      <Get Name="Get" Id="{f05e89e4-6088-42f9-a2ca-0ca1ed1bc65a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[PlcPort := iPlcPort;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{9a600d95-52b1-4e51-9827-1fcd0b10bcc3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[iPlcPort := PlcPort;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="PowerOk" Id="{103db35b-60f7-423c-9a9e-f2692cca72be}" FolderPath="Properties\Status\">
+      <Declaration><![CDATA[PROPERTY PowerOk : REFERENCE TO BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{6197fd7d-79e7-41e0-aaa4-2aed5189fd4b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[PowerOk REF= bPowerOk;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Timeout" Id="{2467ad97-5745-4d0b-b884-61493f209d1b}" FolderPath="Properties\Parameters\">
+      <Declaration><![CDATA[PROPERTY Timeout : TIME
+]]></Declaration>
+      <Get Name="Get" Id="{b3fe4187-969e-4276-8b8a-4bf4c1937ef8}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Timeout := tTimeout;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{0ce70865-9e0c-426c-aa64-2236848c4c67}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[tTimeout := Timeout;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <LineIds Name="FB_UniversalCxUps">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.MR_FirstCycle">
+      <LineId Id="9" Count="0" />
+      <LineId Id="13" Count="2" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.Name.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.Name.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.NetId.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.NetId.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.PlcPort.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.PlcPort.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.PowerOk.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.Timeout.Get">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_UniversalCxUps.Timeout.Set">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

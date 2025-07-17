@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_Alarm" Id="{44119e1c-5e4e-4538-bd9b-92dbca0e41e4}">
+    <Declaration><![CDATA[INTERFACE I_Alarm
+]]></Declaration>
+    <Property Name="AlarmNumber" Id="{93e32961-c723-4eba-acfc-789f4f11fcfe}">
+      <Declaration><![CDATA[PROPERTY AlarmNumber : UINT]]></Declaration>
+      <Get Name="Get" Id="{450326d5-e627-416e-9af2-58e4419f9fbb}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{f1a51338-04b6-48c6-863f-af5e96f31833}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Property Name="Description" Id="{b387e12b-f56b-420a-9bc1-39aaf6ff001b}">
+      <Declaration><![CDATA[PROPERTY Description : String]]></Declaration>
+      <Get Name="Get" Id="{c3b34a70-d556-49b0-8c1e-9c498f607d00}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+      <Set Name="Set" Id="{f598d613-8a01-4bdd-b514-96aec54ec3c0}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Set>
+    </Property>
+    <Method Name="Get" Id="{e0c3f08b-6fd0-4bb5-b0ca-719ca49a193c}">
+      <Declaration><![CDATA[METHOD Get : BOOL
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="Reset" Id="{0ae1005c-0204-452e-b861-401b524b3cbf}">
+      <Declaration><![CDATA[METHOD Reset : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="Set" Id="{6a93a594-3088-41f7-9da4-29944c40752a}">
+      <Declaration><![CDATA[METHOD Set : BOOL
+VAR
+END_VAR
+VAR_INPUT
+	bIn	:	BOOL;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Property Name="TimeOfOccur" Id="{36f6e22d-3214-4cec-893f-a095cfb32990}">
+      <Declaration><![CDATA[PROPERTY TimeOfOccur : TIMESTRUCT]]></Declaration>
+      <Get Name="Get" Id="{22e2ce27-af3c-4886-b33f-4787f3576304}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

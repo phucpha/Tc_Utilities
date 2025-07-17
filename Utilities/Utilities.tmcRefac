@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Refactors>
+  <Renames>
+    <RenamedType>
+      <Type guid="47f78fdb-1a05-4200-a7ef-198f8b079d0d">E_3THRPARTYSCADAWRITEDATABASE</Type>
+      <From>E_AvevaWriteDataBase</From>
+      <To>E_3rdPartyScadaWriteDataBase</To>
+    </RenamedType>
+  </Renames>
+</Refactors>

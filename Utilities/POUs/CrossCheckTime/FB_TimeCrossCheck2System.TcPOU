@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_TimeCrossCheck2System" Id="{307e072b-510f-4c75-9757-777bcad11ff3}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TimeCrossCheck2System
+VAR_INPUT
+	TimeStruct_Sys1 : TIMESTRUCT;
+ 	TimeStruct_Sys2 : TIMESTRUCT;
+	secondDifferentAllow : UDINT; 
+END_VAR
+VAR_OUTPUT
+	bErrorTimeTwoSystem : BOOL;
+END_VAR
+VAR
+	DtSys1 : DT;
+	DtSys2 : DT;
+	uDSys1 : LREAL;
+	uDsys2 : LREAL;
+	diferent : lreal;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+DtSys1 := SYSTEMTIME_TO_DT(TimeStruct_Sys1);
+DtSys2 := SYSTEMTIME_TO_DT(TimeStruct_Sys2);
+
+uDSys1 := DT_TO_LREAL(DtSys1);
+uDSys2 := DT_TO_LREAL(DtSys2);
+diferent := uDSys1 - uDsys2;
+IF ABS(uDSys1 - uDsys2) > secondDifferentAllow THEN
+	bErrorTimeTwoSystem := TRUE;
+ELSE
+	bErrorTimeTwoSystem := FALSE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_TimeCrossCheck2System">
+      <LineId Id="16" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="18" Count="1" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="29" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

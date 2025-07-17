@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FUN_Compare_Timestructs" Id="{8ceaed40-c670-442d-a26c-7437ae3662f6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION FUN_Compare_Timestructs : SINT //returns: 1 IF ts1 is older, -1 if ts2 is older, 0 if equal
+VAR_INPUT
+	ts1	:	TIMESTRUCT;
+	ts2	:	TIMESTRUCT;
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//OUTPUT: 1 IF ts1 is older, -1 if ts2 is older, 0 if equal
+IF (ts1.wYear=ts2.wYear) THEN
+	IF (ts1.wMonth=ts2.wMonth) THEN
+		IF (ts1.wDay=ts2.wDay) THEN
+			IF (ts1.wHour=ts2.wHour) THEN
+				IF (ts1.wMinute=ts2.wMinute) THEN
+					IF (ts1.wSecond=ts2.wSecond) THEN
+						IF (ts1.wMilliseconds=ts2.wMilliseconds) THEN
+							FUN_Compare_Timestructs:=0;
+						ELSIF (ts1.wMilliseconds>ts2.wMilliseconds) THEN
+								FUN_Compare_Timestructs:=-1;
+						ELSE
+								FUN_Compare_Timestructs:=1;
+						END_IF
+						
+					ELSIF (ts1.wSecond>ts2.wSecond) THEN
+						FUN_Compare_Timestructs:=-1;
+					ELSE
+						FUN_Compare_Timestructs:=1;
+					END_IF
+					
+				ELSIF (ts1.wMinute>ts2.wMinute) THEN
+					FUN_Compare_Timestructs:=-1;
+				ELSE
+					FUN_Compare_Timestructs:=1;
+				END_IF
+				
+			ELSIF (ts1.wHour>ts2.wHour) THEN
+				FUN_Compare_Timestructs:=-1;
+			ELSE
+				FUN_Compare_Timestructs:=1;
+			END_IF
+		
+		ELSIF (ts1.wDay>ts2.wDay) THEN
+			FUN_Compare_Timestructs:=-1;
+		ELSE
+			FUN_Compare_Timestructs:=1;
+		END_IF
+	
+	ELSIF (ts1.wMonth>ts2.wMonth) THEN
+		FUN_Compare_Timestructs:=-1;
+	ELSE
+		FUN_Compare_Timestructs:=1;
+	END_IF
+	
+ELSIF (ts1.wYear>ts2.wYear) THEN
+	FUN_Compare_Timestructs:=-1;
+ELSE
+	FUN_Compare_Timestructs:=1;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FUN_Compare_Timestructs">
+      <LineId Id="33" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="18" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="61" Count="3" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="57" Count="3" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="48" Count="3" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="44" Count="3" />
+      <LineId Id="17" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="40" Count="3" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="36" Count="3" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="31" Count="1" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="11" Count="0" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_3rdPartyScadaWriteDataBase" Id="{47f78fdb-1a05-4200-a7ef-198f8b079d0d}">
+    <Declaration><![CDATA[{attribute 'strict'}
+TYPE E_3rdPartyScadaWriteDataBase :
+(
+	DATABASE_WRITE_WAIT_START := 0,
+	DATABASE_WRITE_PREPARE_VALUE, 
+	DATABASE_WRITE_SEND_REQUEST,
+	DATABASE_WRITE_WAIT_RESPONSE
+	
+);
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

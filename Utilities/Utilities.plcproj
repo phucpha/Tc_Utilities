@@ -18,86 +18,218 @@
     <LibraryReferences>{20fcf50b-f1f7-4aaf-adfc-4973c696b7d9}</LibraryReferences>
     <Company>NewEngineer</Company>
     <Released>false</Released>
-    <Title>TC3_Utilities_C</Title>
-    <ProjectVersion>0.1.1.4</ProjectVersion>
-    <DefaultNamespace>TC3_Utilities_C</DefaultNamespace>
-    <Placeholder>TC3_Utilities_C</Placeholder>
+    <Title>Tc_Utilities</Title>
+    <ProjectVersion>0.0.0.1</ProjectVersion>
+    <DefaultNamespace>Tc_Utilities</DefaultNamespace>
+    <Placeholder>Tc_Utilities</Placeholder>
     <Author>https://github.com/phucpha</Author>
     <Description>this is library use for Utilities for TC3.</Description>
     <DocFormat>reStructuredText</DocFormat>
     <LibraryCategories>
       <LibraryCategory>
-        <Id>{1ef942e4-2b91-4fb7-a231-9a9b04cdbbc8}</Id>
+        <Id>{74d110c6-7213-4765-be2b-3ff0f1e344fb}</Id>
         <Version>1.0.0.0</Version>
-        <DefaultName>System_C</DefaultName>
+        <DefaultName>BuildingAutomation</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{f85b699a-03a4-49e3-9943-d193548feecb}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>Communication</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{348d807f-e1d6-47d4-ad2a-dc8d5fd59f05}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{f85b699a-03a4-49e3-9943-d193548feecb}</Id>
+        </ParentCategory>
+        <DefaultName>IEC60870</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{ae647248-ff09-4c38-932e-10ab7e9eb9ea}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{f85b699a-03a4-49e3-9943-d193548feecb}</Id>
+        </ParentCategory>
+        <DefaultName>IEC61850</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{54e90195-1c5a-4ae5-80f5-579d92dd9aa8}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{f85b699a-03a4-49e3-9943-d193548feecb}</Id>
+        </ParentCategory>
+        <DefaultName>Serial</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{23b71de8-3c4d-47a7-8969-e84f015c9e5d}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{f85b699a-03a4-49e3-9943-d193548feecb}</Id>
+        </ParentCategory>
+        <DefaultName>TcpIp</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{e800ea8a-cc01-4f20-bd63-4e34f39b75da}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{f85b699a-03a4-49e3-9943-d193548feecb}</Id>
+        </ParentCategory>
+        <DefaultName>Modbus</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{fafce590-c801-4d05-974c-d391e08bd390}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>Controller</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{313ea83d-0856-4423-8239-36856a823d0a}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>DataAccess</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{0c2d2cc2-1178-495d-a2c5-dd48e484d8c0}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>IO</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{425113a0-360b-49bc-b3be-a0c2f5666343}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{0c2d2cc2-1178-495d-a2c5-dd48e484d8c0}</Id>
+        </ParentCategory>
+        <DefaultName>Drive</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{fbd49470-7a3e-4d8c-bec7-8a262b18d231}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>Math</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>Motion</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{ed65ed00-ff03-42ce-9a93-7e375f85ad34}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>PTP</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{e51270e5-11f0-4f5a-961b-9a4c48fe1dc0}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>Camming</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{592129c5-c82e-42b0-b712-006f68958ecb}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>FlyingSaw</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{2a41f279-94f2-4e37-a241-97286347c638}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>Drive</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{186d654a-b252-4ca2-9854-7e23939f7967}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>NCI</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{a1b11c77-e75e-471f-9e45-11fc4eef760b}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>CNC</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{35857722-d45d-45b1-a229-0a409661ea78}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>Hydraulics</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{dc2f4ff8-2ce2-4f1f-bce2-d5b9c174a46a}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>Packaging</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{42e61ec8-3941-4853-92b4-9d204cebc40e}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{90603686-1a10-42a3-90e5-27c0c69154f7}</Id>
+        </ParentCategory>
+        <DefaultName>XFC</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{d77c10e0-9dc6-46ed-bea1-c259418a1863}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>System</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{ba75baba-ddc3-4479-b5b3-3c8059bcba99}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{d77c10e0-9dc6-46ed-bea1-c259418a1863}</Id>
+        </ParentCategory>
+        <DefaultName>CX-Series</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{7c091802-871e-4487-8dcb-28c32dcb0a30}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{d77c10e0-9dc6-46ed-bea1-c259418a1863}</Id>
+        </ParentCategory>
+        <DefaultName>IPC-Series</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{cb610b82-b544-44a3-8551-c878e5389b18}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{d77c10e0-9dc6-46ed-bea1-c259418a1863}</Id>
+        </ParentCategory>
+        <DefaultName>Visu</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{22803ce1-8755-4889-b7b0-5920397c55f8}</Id>
+        <Version>1.0.0.0</Version>
+        <ParentCategory>
+          <Id>{d77c10e0-9dc6-46ed-bea1-c259418a1863}</Id>
+        </ParentCategory>
+        <DefaultName>Obsolete</DefaultName>
+      </LibraryCategory>
+      <LibraryCategory>
+        <Id>{196fe72f-48df-4527-8662-d9036e12ac55}</Id>
+        <Version>1.0.0.0</Version>
+        <DefaultName>TwinSAFE</DefaultName>
       </LibraryCategory>
     </LibraryCategories>
     <SelectedLibraryCategories>
-      <Id>{1ef942e4-2b91-4fb7-a231-9a9b04cdbbc8}</Id>
+      <Id>{d77c10e0-9dc6-46ed-bea1-c259418a1863}</Id>
     </SelectedLibraryCategories>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DUTs\Alarms\AlarmControler\E_AlarmControlerState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Alarms\VisuEvents\E_EventType.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Alarms\VisuEvents\ST_BaseEvent.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Alarms\VisuEvents\ST_Event.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Burner\E_EcoFlamState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Contactor\E_ContactorError.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Contactor\E_ContactorState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Contactor\E_ContactorStateGo.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerCountColumnsState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerInitState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerInsertIntoTableState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerSelectAllState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerSelectRowState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerSetNewPathState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\E_CSVDataExchangerState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\CSV Data Exchanger\ST_CSV_Record.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Cylinder\Universal Cylinder\E_CylinderError.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Cylinder\Universal Cylinder\E_CylinderState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Cylinder\Universal Cylinder\E_CylinderStateGo.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Digital Devices\Digital Input\E_DigitalInputExState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Digital Devices\Lamp Indicator\E_LampState.TcDUT">
+    <Compile Include="DUTs\E_3rdPartyScadaWriteDataBase.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="DUTs\File Logger\E_FileLoggerAddLogsState.TcDUT">
@@ -112,150 +244,6 @@
     <Compile Include="DUTs\File Logger\E_FileLoggerState.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\Platform\Common\ST_UniversalPlatform.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Machine\E_MachineCtrlState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Safety\E_SafetyCtrlState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlAlarmControlState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlAxisImgType.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlAxisJogMode.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlCylinderImgType.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlNavBarState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlPageState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlRecipeParameterType.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlRecipesManagerState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlRobotImgType.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlSingleAxisState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlSingleCylinderState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrlSingleRobotState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\E_VisuCtrUniversalMachineState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlAxisFrame.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlCylinderFrame.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlInputFrame.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlOutputFrame.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlRecipeParameter.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlRobotFrame.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Platform\Universal Visu\ST_VisuCtrlUnitFrame.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Recipe Manager\E_RecipesManagerReturns.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Recipe Manager\E_RecipesManagerState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Recipe Manager\E_RecipesManagerStateBackup.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Recipe Manager\E_RecipesManagerStateCreateRemove.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Recipe Manager\E_RecipesManagerStateInit.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Recipe Manager\E_RecipesManagerStateReload.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\EtherCAT Registers\ST_CR800EthercatData.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\E_CR800Error.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800State.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateAborting.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateCommandExchange.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateCyclePausing.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateCycleStopping.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateDoingRequest.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateHoming.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateInitializing.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\StateMachine\E_CR800StateSendPosition.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\CR800\ST_CR800UserDefinedArea.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\E_RobotActions.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\Robots\Mitsubishi\E_RobotSystemActions.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\TXT Data Exchanger\E_TXTDataExchangerAddLogsState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\TXT Data Exchanger\E_TXTDataExchangerInitState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\TXT Data Exchanger\E_TXTDataExchangerSearchForFileState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\TXT Data Exchanger\E_TXTDataExchangerSetNewPathState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="DUTs\TXT Data Exchanger\E_TXTDataExchangerState.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="DUTs\Union\U_Word2Dint.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -265,25 +253,7 @@
     <Compile Include="DUTs\Union\U_Word2Real.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FC\F_InRange.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FC\F_ScaleValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FC\FUN_Ceil.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FC\F_CheckInRange.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FC\F_CubitCalculate.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FC\F_QuanDraticCalculate.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="FC\F_QuandraticFomularMaxValue.TcPOU">
+    <Compile Include="FC\FUN_Compare_Timestructs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FC\StringMerge\FUN_MergeLongStrings10.TcPOU">
@@ -310,17 +280,27 @@
     <Compile Include="FC\Systemtime to String\FUN_TimestructToTime.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FC\ToTime\F_lrMinute2Time.TcPOU">
+    <Compile Include="FC\TimeStruct_To_sTimeAveva.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FC\ToTime\F_LrSecond2Time.TcPOU">
+    <Compile Include="FC\ValueToTime\F_lrMinute2Time.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FC\ToTime\F_Time2lrMinute.TcPOU">
+    <Compile Include="FC\ValueToTime\F_LrSecond2Time.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FC\ToTime\F_Time2lrSecond.TcPOU">
+    <Compile Include="FC\ValueToTime\F_Time2lrHour.TcPOU">
       <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FC\ValueToTime\F_Time2lrMinute.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FC\ValueToTime\F_Time2lrSecond.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="GVLs\GVL.TcGVL">
+      <SubType>Code</SubType>
+      <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
@@ -355,82 +335,13 @@
     <Compile Include="POUs\0_Checks\GVL_Checks.TcGVL">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\Alarms\AlarmControler\FB_AlarmControler.TcPOU">
+    <Compile Include="POUs\Alarms\FB_Alarm.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\Alarms\AlarmControler\I_AlarmControler.TcIO">
+    <Compile Include="POUs\Alarms\I_Alarm.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\Alarms\VisuEvents\FB_VisuEventsHandling.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Alarms\VisuEvents\LDT_TO_STRING.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\CX2xxx\FB_UpsCx2xxx.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\CX5xxx\FB_UpsCx50xx.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\CX5xxx\FB_UpsCx51xx.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\CX5xxx\FB_UpsCx5xxx.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\CX5xxx\I_BeckhoffUpsCX5xxx.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\Universal CX\FB_UniversalCxUps.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Beckhoff UPS\Universal CX\I_UniversalCxUps.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\CSV Data Exchanger\FB_CSVDataExchanger.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\CSV Data Exchanger\I_CSVDataExchanger.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Cylinder\Double Coil Cylinder\FB_DoubleCoilCylinder.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Cylinder\Single Coil Cylinder\FB_SingleCoilCylinder.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Cylinder\Universal Cylinder\FB_UniversalCylinder.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Cylinder\Universal Cylinder\I_UniversalCylinder.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Device\FB_DigitalDevice.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Device\I_DigitalDevice.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Input\FB_DigitalInput.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Input\FB_DigitalInputExt.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Input\I_DigitalInput.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Output\FB_DigitalOutput.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Digital Output\I_DigitalOutput.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Lamp Indicator\FB_Lamp.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Digital Devices\Lamp Indicator\I_Lamp.TcIO">
+    <Compile Include="POUs\CrossCheckTime\FB_TimeCrossCheck2System.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\FileLogger\FB_FileLogger.TcPOU">
@@ -439,126 +350,34 @@
     <Compile Include="POUs\FileLogger\I_FileLogger.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\Platform\Universal Machine\FB_UniversalMachine.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Platform\Universal Machine\I_UniversalMachine.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Platform\Universal Safety\FB_UniversalSafety.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Platform\Universal Safety\I_UniversalSafety.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Platform\Universal Visu\FB_UniversalVisu.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Platform\Universal Visu\F_CloseDialog.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Platform\Universal Visu\F_OpenDialog.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Recipes Manager\FB_RecipeParameter.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Recipes Manager\FB_RecipesControler.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Recipes Manager\I_RecipeParameter.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Recipes Manager\I_RecipesManager.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Robots\Mitsubishi\FB_CR800EtherCAT.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Robots\Mitsubishi\I_CR800EtherCAT.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Version\Global_Version.TcGVL">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
-    <Folder Include="DUTs\Alarms" />
-    <Folder Include="DUTs\Alarms\AlarmControler" />
-    <Folder Include="DUTs\Alarms\VisuEvents" />
-    <Folder Include="DUTs\Burner" />
-    <Folder Include="DUTs\Contactor" />
-    <Folder Include="DUTs\CSV Data Exchanger" />
-    <Folder Include="DUTs\Cylinder" />
-    <Folder Include="DUTs\Cylinder\Universal Cylinder" />
-    <Folder Include="DUTs\Digital Devices" />
-    <Folder Include="DUTs\Digital Devices\Digital Input" />
-    <Folder Include="DUTs\Digital Devices\Lamp Indicator" />
     <Folder Include="DUTs\File Logger" />
-    <Folder Include="DUTs\Platform" />
-    <Folder Include="DUTs\Platform\Common" />
-    <Folder Include="DUTs\Platform\Universal Machine" />
-    <Folder Include="DUTs\Platform\Universal Safety" />
-    <Folder Include="DUTs\Platform\Universal Visu" />
-    <Folder Include="DUTs\Recipe Manager" />
-    <Folder Include="DUTs\Robots" />
-    <Folder Include="DUTs\Robots\Mitsubishi" />
-    <Folder Include="DUTs\Robots\Mitsubishi\CR800" />
-    <Folder Include="DUTs\Robots\Mitsubishi\CR800\EtherCAT Registers" />
-    <Folder Include="DUTs\Robots\Mitsubishi\CR800\StateMachine" />
-    <Folder Include="DUTs\TXT Data Exchanger" />
+    <Folder Include="DUTs\Visu" />
     <Folder Include="DUTs\Union" />
     <Folder Include="FC" />
-    <Folder Include="FC\ToTime" />
+    <Folder Include="FC\ValueToTime" />
     <Folder Include="FC\StringMerge" />
     <Folder Include="FC\Systemtime to String" />
-    <Folder Include="POUs\0_Checks" />
+    <Folder Include="GVLs" />
+    <Folder Include="POUs\0_Checks">
+      <ExcludeFromBuild>true</ExcludeFromBuild>
+    </Folder>
     <Folder Include="POUs\0_Checks\Checks" />
     <Folder Include="POUs\Alarms" />
-    <Folder Include="POUs\Alarms\AlarmControler" />
-    <Folder Include="POUs\Alarms\VisuEvents" />
-    <Folder Include="POUs\Beckhoff UPS" />
-    <Folder Include="POUs\Beckhoff UPS\CX2xxx" />
-    <Folder Include="POUs\Beckhoff UPS\CX5xxx" />
-    <Folder Include="POUs\Beckhoff UPS\Universal CX" />
-    <Folder Include="POUs\CSV Data Exchanger" />
-    <Folder Include="POUs\Cylinder" />
-    <Folder Include="POUs\Cylinder\Double Coil Cylinder" />
-    <Folder Include="POUs\Cylinder\Single Coil Cylinder" />
-    <Folder Include="POUs\Cylinder\Universal Cylinder" />
-    <Folder Include="POUs\Digital Devices" />
-    <Folder Include="POUs\Digital Devices\Digital Device" />
-    <Folder Include="POUs\Digital Devices\Digital Input" />
-    <Folder Include="POUs\Digital Devices\Digital Output" />
-    <Folder Include="POUs\Digital Devices\Lamp Indicator" />
+    <Folder Include="POUs\CrossCheckTime" />
     <Folder Include="POUs\FileLogger" />
-    <Folder Include="POUs\Platform" />
-    <Folder Include="POUs\Platform\Universal Machine" />
-    <Folder Include="POUs\Platform\Universal Safety" />
-    <Folder Include="POUs\Platform\Universal Visu" />
-    <Folder Include="POUs\Recipes Manager" />
-    <Folder Include="POUs\Robots" />
-    <Folder Include="POUs\Robots\Mitsubishi" />
     <Folder Include="Version" />
     <Folder Include="POUs" />
   </ItemGroup>
   <ItemGroup>
-    <PlaceholderReference Include="Tc2_IoFunctions">
-      <DefaultResolution>Tc2_IoFunctions, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc2_IoFunctions</Namespace>
-    </PlaceholderReference>
-    <PlaceholderReference Include="Tc2_Math">
-      <DefaultResolution>Tc2_Math, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc2_Math</Namespace>
-    </PlaceholderReference>
     <PlaceholderReference Include="Tc2_Standard">
       <DefaultResolution>Tc2_Standard, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_Standard</Namespace>
-    </PlaceholderReference>
-    <PlaceholderReference Include="Tc2_SUPS">
-      <DefaultResolution>Tc2_SUPS, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc2_SUPS</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_System">
       <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
@@ -567,10 +386,6 @@
     <PlaceholderReference Include="Tc2_Utilities">
       <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_Utilities</Namespace>
-    </PlaceholderReference>
-    <PlaceholderReference Include="Tc3_EventLogger">
-      <DefaultResolution>Tc3_EventLogger, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc3_EventLogger</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc3_Module">
       <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
@@ -583,27 +398,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <SubObject Include="FB_CR800EtherCAT.UserDefinedArea">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_CSVDataExchanger.MR_CreateTable">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_CSVDataExchanger.MR_InsertIntoTable">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_CSVDataExchanger.MR_ParseString">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_CSVDataExchanger.M_FileProperties">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_UniversalSafety.MS_Running">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
-    <SubObject Include="FB_UniversalVisu.MS_ManualSafety">
-      <ExcludeFromBuild>true</ExcludeFromBuild>
-    </SubObject>
+    <PlaceholderResolution Include="Tc2_System">
+      <Resolution>Tc2_System, * (Beckhoff Automation GmbH)</Resolution>
+    </PlaceholderResolution>
   </ItemGroup>
   <ProjectExtensions>
     <PlcProjectOptions>

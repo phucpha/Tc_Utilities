@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="TimeStruct_To_sTimeAveva" Id="{1c79c77b-97be-4042-91aa-be9573eddcbc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION TimeStruct_To_sTimeAveva : STRING// convert TIMESTRUCT TO MONTH/DAY/YEAR HOUR:MINUTE: SECOND ( FORMAT 'MM/DD/YYYY HH:MM:SS' )
+VAR_INPUT
+	timestruct 	: TIMESTRUCT;
+	typeFormat	: UINT := 0; (* 	0: 'MM/DD/YYYY HH:MM:SS'
+									1: 'MMDDYYYY'
+									2: 'YYYYMMDD'
+									3: 'DDMMYYYY'
+									4: 'YYYY-MM-DD HH:MM:SS' 
+									5: 'YYYY-MM-DD HH:MM:SS.XXX'
+													*)
+	
+END_VAR
+VAR
+	sYear : STRING;
+	sMonth : STRING;
+	sDay : STRING;
+	sHour : STRING;
+	sMinute : STRING;
+	sSecond : STRING;
+	sMilisecond	: STRING;
+	concate1 : STRING;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[	sYear := WORD_TO_STRING(timestruct.wYear);
+	sMonth := WORD_TO_STRING(timestruct.wMonth);
+	sDay 	:= WORD_TO_STRING(timestruct.wDay);
+	
+	sHour := WORD_TO_STRING(timestruct.wHour);
+	sMinute := WORD_TO_STRING(timestruct.wMinute);
+	sSecond 	:= WORD_TO_STRING(timestruct.wSecond);
+	sMilisecond := WORD_TO_STRING(timestruct.wMilliseconds);
+	
+	IF timestruct.wMonth <10 THEN
+		sMonth := CONCAT('0', smonth);
+	END_IF
+	
+	IF timestruct.wDay <10 THEN
+		sDay := CONCAT('0', sday);
+	END_IF
+	
+	IF timestruct.wHour <10 THEN
+		sHour := CONCAT('0', shour);
+	END_IF
+	IF timestruct.wSecond <10 THEN
+		ssecond := CONCAT('0', ssecond);
+	END_IF
+	IF timestruct.wMinute <10 THEN
+		sMinute := CONCAT('0', sminute);
+	END_IF
+	
+	IF timestruct.wMilliseconds < 10  THEN
+		sMilisecond :=  CONCAT('00', sMilisecond);
+	ELSIF timestruct.wMilliseconds < 100 THEN
+		sMilisecond :=  CONCAT('0', sMilisecond);
+	END_IF
+	
+CASE typeFormat OF
+	0://0: 'MM/DD/YYYY HH:MM:SS'
+		concate1 := CONCAT( smonth, '/');
+		concate1 := CONCAT( concate1, sDay);
+		concate1 := CONCAT( concate1, '/');
+		concate1 := CONCAT( concate1, sYear);
+		concate1 := CONCAT( concate1, ' ');
+		concate1 := CONCAT( concate1, shour);
+		concate1 := CONCAT( concate1, ':');
+		concate1 := CONCAT( concate1, sminute);
+		concate1 := CONCAT( concate1, ':');
+		concate1 := CONCAT( concate1, ssecond);
+	
+	1: //1: 'MMDDYYYY'
+		concate1 := CONCAT( smonth, sDay);
+		concate1 := CONCAT( concate1, sYear);
+		
+	2: 	//2: 'YYYYMMDD'
+		concate1 := CONCAT( syear, smonth);
+		concate1 := CONCAT( concate1, sday);	
+		
+	3: 	//3: 'DDMMYYYY'
+		concate1 := CONCAT( sday, smonth);
+		concate1 := CONCAT( concate1, syear);	
+	4: //'YYYY-MM-DD HH:MM:SS' 
+		concate1 := CONCAT( syear, '-');//YYYY-
+		concate1 := CONCAT ( concate1, smonth);//YYYY-MM
+		concate1 := CONCAT( concate1, '-');//YYYY-MM-
+		concate1 := CONCAT( concate1, SDAY);//YYYY-MM-DD
+		concate1 := CONCAT( concate1, ' ');//'YYYY-MM-DD '
+		concate1 := CONCAT( concate1, shour);//'YYYY-MM-DD HH
+		concate1 := CONCAT( concate1, ':');//'YYYY-MM-DD HH:
+		concate1 := CONCAT( concate1, sminute);//'YYYY-MM-DD HH:MM
+		concate1 := CONCAT( concate1, ':');//'YYYY-MM-DD HH:MM:
+		concate1 := CONCAT( concate1, ssecond);//'YYYY-MM-DD HH:MM:SS
+	5: (*need addition code*)
+		concate1 := CONCAT( syear, '-');//YYYY-
+		concate1 := CONCAT ( concate1, smonth);//YYYY-MM
+		concate1 := CONCAT( concate1, '-');//YYYY-MM-
+		concate1 := CONCAT( concate1, SDAY);//YYYY-MM-DD
+		concate1 := CONCAT( concate1, ' ');//'YYYY-MM-DD '
+		concate1 := CONCAT( concate1, shour);//'YYYY-MM-DD HH
+		concate1 := CONCAT( concate1, ':');//'YYYY-MM-DD HH:
+		concate1 := CONCAT( concate1, sminute);//'YYYY-MM-DD HH:MM
+		concate1 := CONCAT( concate1, ':');//'YYYY-MM-DD HH:MM:
+		concate1 := CONCAT( concate1, ssecond);//'YYYY-MM-DD HH:MM:SS
+		concate1 := CONCAT( concate1, '.');//'YYYY-MM-DD HH:MM:SS.
+		concate1 := CONCAT( concate1, sMilisecond); ////'YYYY-MM-DD HH:MM:SS.xxx
+		
+	ELSE
+		concate1 := '';
+END_CASE
+
+TimeStruct_To_sTimeAveva := concate1;]]></ST>
+    </Implementation>
+    <LineIds Name="TimeStruct_To_sTimeAveva">
+      <LineId Id="3" Count="25" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="106" Count="1" />
+      <LineId Id="109" Count="1" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="29" Count="53" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

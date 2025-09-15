@@ -21,16 +21,6 @@ VAR
 	sStrTemp1 :	STRING(2000);
 	sStrTemp2 :	STRING(2000);
 END_VAR
-(*
-Version history:
-
-+-------------+------------+----------------+----------+------------------------------------------+
-|Date         | Version    | created under  | Author   | Remark                                   |
-+=============+============+================+==========+==========================================+
-|2021-11      | 1.0.0.0    | V3.1.4024.22   | ADBO     | Function created		                  |
-+-------------+------------+----------------+----------+------------------------------------------+
-
-*)
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[CONCAT2(ADR(sStr1),ADR(sStr2),ADR(sStrTemp1),SIZEOF(sStrTemp1));

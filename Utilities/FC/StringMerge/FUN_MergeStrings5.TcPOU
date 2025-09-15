@@ -12,17 +12,7 @@ VAR_INPUT
 	sStr4	: STRING;		(* Fourth string in merge row *)
 	sStr5	: STRING;		(* Fifth string in merge row *)
 
-END_VAR
-(*
-Version history:
-
-+-------------+------------+----------------+----------+------------------------------------------+
-|Date         | Version    | created under  | Author   | Remark                                   |
-+=============+============+================+==========+==========================================+
-|2021-11      | 1.0.0.0    | V3.1.4024.22   | ADBO     | Function created    		              |
-+-------------+------------+----------------+----------+------------------------------------------+
-
-*)]]></Declaration>
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[FUN_MergeStrings5 := CONCAT(sStr1,sStr2);
 FUN_MergeStrings5 := CONCAT(FUN_MergeStrings5, sStr3);

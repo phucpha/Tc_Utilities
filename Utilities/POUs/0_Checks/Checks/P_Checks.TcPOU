@@ -1,18 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="P_Checks" Id="{bce355f9-21e8-41bf-a535-a57361862bad}" SpecialFunc="None">
-    <Declaration><![CDATA[//==================================================================================================
-//							Beckhoff Automation Poland
-//									19.10.2018
-//	Program wykrywajacy bledy dzielnia przez 0 i przekraczania zakresow zmiennych, tablic...
-// 
-//	v1.4	|| TC v 3.1.4022.25		|| - Ustawiono setowanie bledow, dodano wejscie bReset 
-//	v1.3	|| TC v 3.1.4022.16		|| - Przeniesiono logowanie do EventLoggera wraz z zabepieczeniem przed zbyt szybkim logowaniem zdarzeń do programu P_SystemDiag_EventLog. 
-//	v1.2	|| TC v 3.1.4020.28		|| - Dodano logowanie do EventLoggera wraz z zabepieczeniem przed zbyt szybki logowaniem zdarzeń
-//	v1.1 	|| TC v 3.1.4020.14 	|| - Dodane wyjscia bOk, bWarning, bError
-//	v1.0 	|| TC v 3.1.4020.0 		|| - Pierwsza wersja
-//==================================================================================================
-PROGRAM P_Checks
+    <Declaration><![CDATA[PROGRAM P_Checks
 VAR_INPUT
 	bReset							: BOOL;
 END_VAR

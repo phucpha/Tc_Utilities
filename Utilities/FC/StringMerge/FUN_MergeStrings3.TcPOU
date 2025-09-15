@@ -11,16 +11,6 @@ VAR_INPUT
 	sStr3	: STRING;			(* Fourth string in merge row *)
 
 END_VAR
-(*
-Version history:
-
-+-------------+------------+----------------+----------+------------------------------------------+
-|Date         | Version    | created under  | Author   | Remark                                   |
-+=============+============+================+==========+==========================================+
-|2022-06      | 1.0.0.0    | V3.1.4024.22   | ADS      | Function created    		              |
-+-------------+------------+----------------+----------+------------------------------------------+
-
-*)
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[FUN_MergeStrings3 := CONCAT(sStr1,sStr2);

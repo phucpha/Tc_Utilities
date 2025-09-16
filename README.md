@@ -1,4 +1,4 @@
-# Tc_Utilities TwinCAT library use for Automation device without requrire special Beckhoff license.
+# Tc_Utilities TwinCAT library.
 
 **The library Lack of:**
 1. Test driven development (TDD).
